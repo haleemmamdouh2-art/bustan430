@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Bustan's Memory Map</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Petal Container -->
+  <div id="petal-container"></div>
+
+  <!-- Landing Overlay -->
+  <div id="landing-overlay" class="overlay active">
+    <div class="glass-panel landing-content">
+      <h1 class="poetic-heading">Everywhere we go,<br>a garden grows.</h1>
+      <p class="subtext">A digital garden of memories.</p>
+      <button id="enter-garden-btn" class="primary-btn">Enter Garden</button>
+    </div>
+  </div>
+
+  <!-- Main App (Map) -->
+  <div id="app" class="hidden">
+    <header class="app-header">
+      <h2>Bustan's Garden</h2>
+      <button id="admin-login-btn" class="ghost-btn admin-trigger">Admin</button>
+    </header>
+    
+    <div id="map"></div>
+    
+    <!-- Easter Egg 3: Countdown Widget -->
+    <div id="countdown-widget" class="glass-panel-small countdown">
+      <div class="countdown-title">Next Milestone</div>
+      <div id="countdown-timer">00:00:00:00</div>
+    </div>
+    
+    <!-- Easter Egg 2: Live Growth Mode Button -->
+    <button id="live-growth-btn" class="floating-btn action-btn tooltip-trigger" aria-label="Live Growth Mode">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      <span class="tooltip">Grow Vine Path</span>
+    </button>
+    
+    <!-- Admin Add Mode Info -->
+    <div id="admin-add-info" class="hidden glass-panel-small center-top">
+      <p>Tap anywhere on the map to plant a memory.</p>
+      <button id="exit-admin-btn" class="ghost-btn">Exit Admin</button>
+    </div>
+    
+    <!-- Easter Egg 1: Footer -->
+    <div class="easter-egg-footer" id="pickup-line-trigger">
+      <span>♥</span>
+    </div>
+    <div id="pickup-line-popup" class="hidden modal">
+      <div class="glass-panel">
+        <h3 class="romantic-text">For Bustan</h3>
+        <p>"They say a 'Bustan' needs a 'Haleem' gardener to truly bloom. Good thing I’m not going anywhere."</p>
+        <button id="close-pickup-line" class="primary-btn mt-4">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Login Modal -->
+  <div id="admin-login-modal" class="modal hidden">
+    <div class="glass-panel">
+      <h3>Admin Access</h3>
+      <input type="password" id="admin-password" placeholder="Enter Password" class="input-field" />
+      <div class="modal-actions">
+        <button id="login-submit-btn" class="primary-btn">Login</button>
+        <button id="login-cancel-btn" class="ghost-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Memory Modal -->
+  <div id="add-memory-modal" class="modal hidden">
+    <div class="glass-panel">
+      <h3>Plant a Memory</h3>
+      <input type="file" id="memory-photo" accept="image/*" class="input-field" />
+      <input type="date" id="memory-date" class="input-field" />
+      <textarea id="memory-note" placeholder="Write a short note..." class="input-field"></textarea>
+      <select id="memory-flower-type" class="input-field">
+        <option value="rose">Rose</option>
+        <option value="lily">Lily</option>
+        <option value="sunflower">Sunflower</option>
+      </select>
+      <div class="modal-actions">
+        <button id="save-memory-btn" class="primary-btn">Plant</button>
+        <button id="cancel-memory-btn" class="ghost-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Supabase JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- Main Script -->
+  <script type="module" src="main.js"></script>
+
+</body>
+</html>
