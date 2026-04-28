@@ -13,4 +13,4 @@ try {
   console.warn("Supabase not configured yet.");
 }
 
-export const supabase = supabaseClient;
+window.supabaseDb = supabaseClient;
