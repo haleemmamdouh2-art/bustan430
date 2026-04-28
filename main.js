@@ -1,139 +1,155 @@
-// Global State
-let map;
-let pageFlip;
+// =============================================
+// STATE
+// =============================================
+let map, pageFlip;
 let isAdmin = false;
+let isEditMode = false;
 let vinePath = null;
-let currentLocations = []; 
+let currentLocations = [];
 let activeLocationId = null;
+let activeEditId = null; // which data-edit-id is being edited
 
-// DOM Elements
-const navHome = document.getElementById('nav-home');
-const navLiveGrowth = document.getElementById('nav-live-growth');
-const navAdmin = document.getElementById('nav-admin');
+// =============================================
+// DOM REFS
+// =============================================
+const navHome         = document.getElementById('nav-home');
+const navGrowth       = document.getElementById('nav-live-growth');
+const navAdmin        = document.getElementById('nav-admin');
 
 const adminLoginModal = document.getElementById('admin-login-modal');
-const loginSubmitBtn = document.getElementById('login-submit-btn');
-const loginCancelBtn = document.getElementById('login-cancel-btn');
-const adminPasswordInput = document.getElementById('admin-password');
+const loginSubmitBtn  = document.getElementById('login-submit-btn');
+const loginCancelBtn  = document.getElementById('login-cancel-btn');
+const adminPassInput  = document.getElementById('admin-password');
 
-const adminDashboardSheet = document.getElementById('admin-dashboard-sheet');
-const closeAdminDashboardBtn = document.getElementById('close-admin-dashboard-btn');
-const adminMapLinkInput = document.getElementById('admin-map-link');
-const adminFlowerTypeSelect = document.getElementById('admin-flower-type');
-const adminExtractPlantBtn = document.getElementById('admin-extract-plant-btn');
-const adminPlantError = document.getElementById('admin-plant-error');
-const adminLocationsList = document.getElementById('admin-locations-list');
+const adminSheet      = document.getElementById('admin-dashboard-sheet');
+const closeAdminBtn   = document.getElementById('close-admin-dashboard-btn');
+const adminMapLink    = document.getElementById('admin-map-link');
+const adminFlower     = document.getElementById('admin-flower-type');
+const adminPlantBtn   = document.getElementById('admin-extract-plant-btn');
+const adminPlantErr   = document.getElementById('admin-plant-error');
+const adminLocList    = document.getElementById('admin-locations-list');
+const toggleEditBtn   = document.getElementById('toggle-edit-mode-btn');
 
-const albumSheet = document.getElementById('album-sheet');
-const closeAlbumBtn = document.getElementById('close-album-btn');
-const albumFeed = document.getElementById('album-feed');
-const albumAdminControls = document.getElementById('album-admin-controls');
-const addMemoryToAlbumBtn = document.getElementById('add-memory-to-album-btn');
+const albumSheet      = document.getElementById('album-sheet');
+const closeAlbumBtn   = document.getElementById('close-album-btn');
+const albumFeed       = document.getElementById('album-feed');
+const albumAdminCtrl  = document.getElementById('album-admin-controls');
+const addMemBtn       = document.getElementById('add-memory-to-album-btn');
 
-const addMemoryModal = document.getElementById('add-memory-modal');
-const saveMemoryBtn = document.getElementById('save-memory-btn');
-const cancelMemoryBtn = document.getElementById('cancel-memory-btn');
-const memoryPhotoInput = document.getElementById('memory-photo');
-const memoryDateInput = document.getElementById('memory-date');
-const memoryNoteInput = document.getElementById('memory-note');
-const memoryFontSelect = document.getElementById('memory-font');
-const memoryColorSelect = document.getElementById('memory-color');
+const addMemModal     = document.getElementById('add-memory-modal');
+const saveMemBtn      = document.getElementById('save-memory-btn');
+const cancelMemBtn    = document.getElementById('cancel-memory-btn');
+const memPhoto        = document.getElementById('memory-photo');
+const memDate         = document.getElementById('memory-date');
+const memNote         = document.getElementById('memory-note');
+const memFont         = document.getElementById('memory-font');
+const memColor        = document.getElementById('memory-color');
 
-// Emojis for markers
+const textEditModal   = document.getElementById('text-edit-modal');
+const textEditInput   = document.getElementById('text-edit-input');
+const textEditSave    = document.getElementById('text-edit-save-btn');
+const textEditCancel  = document.getElementById('text-edit-cancel-btn');
+
+const imageEditInput  = document.getElementById('image-edit-input');
+const editBanner      = document.getElementById('edit-mode-banner');
+const exitEditBtn     = document.getElementById('exit-edit-mode-btn');
+
 const emojis = {
-  red_rose: '🌹', white_rose: '🌼', pink_rose: '🌸', lily: '🪷',
-  sunflower: '🌻', tulip: '🌷', cherry_blossom: '🌺', daisy: '🥀'
+  red_rose:'🌹', white_rose:'🌼', pink_rose:'🌸', lily:'🪷',
+  sunflower:'🌻', tulip:'🌷', cherry_blossom:'🌺', daisy:'🥀'
 };
 
+// =============================================
+// INIT
+// =============================================
 function init() {
-  createRealisticPetals();
-  
-  // 1. Initialize Flipbook
-  const bookEl = document.getElementById('book');
-  if (window.St && window.St.PageFlip) {
-    pageFlip = new window.St.PageFlip(bookEl, {
-      width: 400, // Base width
-      height: 600, // Base height
-      size: 'stretch',
-      minWidth: 300,
-      maxWidth: 1000,
-      minHeight: 400,
-      maxHeight: 1000,
-      maxShadowOpacity: 0.5,
-      showCover: true,
-      mobileScrollSupport: false,
-      usePortrait: true // Forces 1 page on mobile, 2 on desktop
-    });
+  createPetals();
+  initFlipbook();
+  initMap();
+  loadBookContent();
 
-    pageFlip.loadFromHTML(document.querySelectorAll('.page'));
-
-    // Fix map rendering when flipping to the map page
-    pageFlip.on('flip', (e) => {
-      // If we flip to page 3 (index 3), invalidate the map size so it renders perfectly
-      if (e.data === 3 && map) {
-        setTimeout(() => map.invalidateSize(), 300);
-      }
-    });
-  }
-
-  // 2. Initialize Map
-  initMapWithGeolocation();
-  
   // Nav
-  navHome.addEventListener('click', () => { 
-    closeSheet(); 
-    adminDashboardSheet.classList.add('fade-out');
-    resetNav(); 
-    navHome.classList.add('active'); 
+  navHome.addEventListener('click', () => { closeAlbumSheet(); hideAdmin(); resetNav(); navHome.classList.add('active'); });
+  navGrowth.addEventListener('click', () => { toggleVine(); resetNav(); navGrowth.classList.add('active'); });
+  navAdmin.addEventListener('click', () => {
+    resetNav(); navAdmin.classList.add('active');
+    if (isAdmin) showAdmin();
+    else adminLoginModal.classList.remove('hidden');
   });
-  navLiveGrowth.addEventListener('click', () => { toggleVinePath(); resetNav(); navLiveGrowth.classList.add('active'); });
-  navAdmin.addEventListener('click', () => { 
-    if (isAdmin) openAdminDashboard();
-    else adminLoginModal.classList.remove('hidden'); 
-    resetNav(); navAdmin.classList.add('active'); 
-  });
-  
-  // Admin Login & Dashboard
-  loginCancelBtn.addEventListener('click', () => adminLoginModal.classList.add('hidden'));
+
+  // Admin login
   loginSubmitBtn.addEventListener('click', handleLogin);
-  closeAdminDashboardBtn.addEventListener('click', () => {
-    adminDashboardSheet.classList.add('fade-out');
-    resetNav();
-    navHome.classList.add('active');
+  loginCancelBtn.addEventListener('click', () => { adminLoginModal.classList.add('hidden'); resetNav(); navHome.classList.add('active'); });
+  adminPassInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
+
+  // Admin dashboard
+  closeAdminBtn.addEventListener('click', hideAdmin);
+  adminPlantBtn.addEventListener('click', handlePlant);
+  toggleEditBtn.addEventListener('click', toggleEditMode);
+
+  // Album sheet
+  closeAlbumBtn.addEventListener('click', closeAlbumSheet);
+  addMemBtn.addEventListener('click', () => addMemModal.classList.remove('hidden'));
+  cancelMemBtn.addEventListener('click', () => addMemModal.classList.add('hidden'));
+  saveMemBtn.addEventListener('click', saveMemory);
+
+  // Text editor
+  textEditSave.addEventListener('click', saveTextEdit);
+  textEditCancel.addEventListener('click', () => { textEditModal.classList.add('hidden'); activeEditId = null; });
+
+  // Image editor
+  imageEditInput.addEventListener('change', handleImageUpload);
+
+  // Edit mode exit banner
+  exitEditBtn.addEventListener('click', toggleEditMode);
+}
+
+// =============================================
+// FLIPBOOK
+// =============================================
+function initFlipbook() {
+  const bookEl = document.getElementById('book');
+  if (!window.St || !window.St.PageFlip) return;
+
+  pageFlip = new window.St.PageFlip(bookEl, {
+    width: 380, height: 580, size: 'stretch',
+    minWidth: 280, maxWidth: 900,
+    minHeight: 380, maxHeight: 900,
+    maxShadowOpacity: 0.5,
+    showCover: true,
+    mobileScrollSupport: false,
+    usePortrait: true,
+    autoSize: true,
+    flippingTime: 700
   });
-  adminExtractPlantBtn.addEventListener('click', handleAdminPlant);
 
-  // Sheet Controls
-  closeAlbumBtn.addEventListener('click', closeSheet);
-  
-  // Memory Modal
-  addMemoryToAlbumBtn.addEventListener('click', () => addMemoryModal.classList.remove('hidden'));
-  cancelMemoryBtn.addEventListener('click', () => addMemoryModal.classList.add('hidden'));
-  saveMemoryBtn.addEventListener('click', saveMemory);
+  pageFlip.loadFromHTML(document.querySelectorAll('.page'));
+
+  pageFlip.on('flip', e => {
+    // Page 3 is the map page (0-indexed = 3)
+    if (e.data === 3 && map) {
+      setTimeout(() => map.invalidateSize(), 400);
+    }
+  });
 }
 
-// -------------------------
-// MAP INITIALIZATION
-// -------------------------
-function resetNav() {
-  document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
-}
-
-function initMapWithGeolocation() {
-  // Disable dragging on mobile so users don't accidentally turn the page while panning
-  map = L.map('map', { 
+// =============================================
+// MAP
+// =============================================
+function initMap() {
+  map = L.map('map', {
     zoomControl: false,
     dragging: !L.Browser.mobile,
     tap: !L.Browser.mobile
   });
-  
+
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; OSM', subdomains: 'abcd', maxZoom: 20
+    attribution: '&copy; OSM contributors', subdomains: 'abcd', maxZoom: 20
   }).addTo(map);
 
   if (navigator.geolocation) {
     navigator.geolocation.getCurrentPosition(
-      (pos) => { map.setView([pos.coords.latitude, pos.coords.longitude], 14); loadLocations(); },
+      p => { map.setView([p.coords.latitude, p.coords.longitude], 14); loadLocations(); },
       () => { map.setView([30.0444, 31.2357], 12); loadLocations(); }
     );
   } else {
@@ -141,216 +157,363 @@ function initMapWithGeolocation() {
     loadLocations();
   }
 
-  map.on('click', closeSheet);
+  map.on('click', closeAlbumSheet);
 }
 
-// -------------------------
-// DATA LOADING & RENDERING
-// -------------------------
+// =============================================
+// LOCATIONS & MARKERS
+// =============================================
 async function loadLocations() {
   try {
     const { data, error } = await window.supabaseDb.from('locations').select('*, memories(*)');
     if (error) throw error;
     if (data) {
-      currentLocations.forEach(loc => { if(loc.marker) map.removeLayer(loc.marker); });
+      currentLocations.forEach(l => { if (l.marker) map.removeLayer(l.marker); });
       currentLocations = data;
-      currentLocations.forEach(loc => drawMarker(loc));
-      if (isAdmin && !adminDashboardSheet.classList.contains('fade-out')) renderAdminDashboard();
+      currentLocations.forEach(drawMarker);
+      if (isAdmin && adminSheet && !adminSheet.classList.contains('fade-out')) renderAdminPanel();
     }
-  } catch (err) {
-    console.error("Failed to load locations:", err);
-  }
+  } catch (e) { console.error('loadLocations:', e); }
 }
 
-function drawMarker(location) {
-  const emoji = emojis[location.flower_type] || emojis.red_rose;
+function drawMarker(loc) {
+  const emoji = emojis[loc.flower_type] || '🌸';
   const icon = L.divIcon({
-    html: `<div style="font-size: 26px; text-shadow: 0 4px 6px rgba(0,0,0,0.6); text-align: center; line-height: 26px; width: 26px; height: 26px;">${emoji}</div>`,
+    html: `<div style="font-size:26px;line-height:26px;width:26px;height:26px;text-align:center;filter:drop-shadow(0 3px 5px rgba(0,0,0,0.5));">${emoji}</div>`,
     className: 'flower-icon', iconSize: [26, 26], iconAnchor: [13, 13]
   });
-  
-  const marker = L.marker([location.lat, location.lng], { icon }).addTo(map);
-  marker.on('click', () => openAlbumSheet(location));
-  location.marker = marker;
+  const marker = L.marker([loc.lat, loc.lng], { icon }).addTo(map);
+  marker.on('click', () => openAlbumSheet(loc));
+  loc.marker = marker;
 }
 
-function openAlbumSheet(location) {
-  activeLocationId = location.id;
+function openAlbumSheet(loc) {
+  activeLocationId = loc.id;
   albumFeed.innerHTML = '';
-  
-  if (isAdmin) albumAdminControls.classList.remove('hidden');
-  else albumAdminControls.classList.add('hidden');
+  isAdmin ? albumAdminCtrl.classList.remove('hidden') : albumAdminCtrl.classList.add('hidden');
 
-  if (location.memories && location.memories.length > 0) {
-    const sorted = [...location.memories].sort((a,b) => new Date(a.date) - new Date(b.date));
+  if (loc.memories?.length > 0) {
+    const sorted = [...loc.memories].sort((a, b) => new Date(a.date) - new Date(b.date));
     sorted.forEach(mem => {
       const card = document.createElement('div');
       card.className = 'memory-card';
-      card.style.backgroundColor = mem.bg_color;
-      let fontClass = 'font-outfit';
-      if (mem.font === 'Playfair Display') fontClass = 'font-playfair';
-      if (mem.font === 'Caveat') fontClass = 'font-caveat';
-      if (mem.font === 'Dancing Script') fontClass = 'font-dancing';
+      card.style.backgroundColor = mem.bg_color || '#fff';
+      const fontMap = { 'Playfair Display': 'font-playfair', 'Caveat': 'font-caveat', 'Dancing Script': 'font-dancing' };
+      const fc = fontMap[mem.font] || '';
       card.innerHTML = `
         <img src="${mem.photo}" alt="Memory" loading="lazy" />
-        <div class="memory-header"><div class="memory-date ${fontClass}">${new Date(mem.date).toLocaleDateString()}</div></div>
-        ${mem.note ? `<div class="memory-note ${fontClass}">${mem.note}</div>` : ''}
+        <div class="memory-date ${fc}">${new Date(mem.date).toLocaleDateString()}</div>
+        ${mem.note ? `<div class="memory-note ${fc}">${mem.note}</div>` : ''}
       `;
       albumFeed.appendChild(card);
     });
   } else {
-    albumFeed.innerHTML = `<p style="text-align:center; color: #888; margin-top:2rem;">A seed was planted here.</p>`;
+    albumFeed.innerHTML = `<p style="text-align:center;color:#888;margin-top:2rem;">A seed was planted here. 🌱</p>`;
   }
-  
+
   albumSheet.classList.remove('hidden');
   void albumSheet.offsetWidth;
   albumSheet.classList.add('open');
 }
 
-function closeSheet() {
+function closeAlbumSheet() {
   albumSheet.classList.remove('open');
   setTimeout(() => albumSheet.classList.add('hidden'), 400);
   activeLocationId = null;
 }
 
-// -------------------------
-// ADMIN DASHBOARD
-// -------------------------
-function handleLogin() {
-  if (adminPasswordInput.value === "bustan") { 
-    isAdmin = true; adminLoginModal.classList.add('hidden'); openAdminDashboard();
-  } else { alert("Incorrect password"); }
+// =============================================
+// VINE / PATH
+// =============================================
+function toggleVine() {
+  if (vinePath) { map.removeLayer(vinePath); vinePath = null; return; }
+  const pts = [];
+  currentLocations.forEach(loc => {
+    (loc.memories || []).forEach(m => pts.push({ lat: loc.lat, lng: loc.lng, d: new Date(m.date) }));
+  });
+  pts.sort((a, b) => a.d - b.d);
+  const latlngs = pts.map(p => [p.lat, p.lng]);
+  if (latlngs.length < 2) return;
+
+  vinePath = L.polyline(latlngs, { color: '#ff69b4', weight: 3, opacity: 0.85, dashArray: '10,10' }).addTo(map);
+  const path = vinePath._path;
+  const len = path.getTotalLength();
+  path.style.transition = 'none';
+  path.style.strokeDasharray = `${len} ${len}`;
+  path.style.strokeDashoffset = len;
+  path.getBoundingClientRect();
+  path.style.transition = 'stroke-dashoffset 3s ease-in-out';
+  path.style.strokeDashoffset = 0;
 }
 
-function openAdminDashboard() { adminDashboardSheet.classList.remove('fade-out'); renderAdminDashboard(); }
+// =============================================
+// ADMIN
+// =============================================
+function resetNav() { document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active')); }
 
-function renderAdminDashboard() {
-  adminLocationsList.innerHTML = '';
-  if (currentLocations.length === 0) { adminLocationsList.innerHTML = `<p style="color:#888;">No flowers planted yet.</p>`; return; }
-  
+function handleLogin() {
+  if (adminPassInput.value === 'bustan') {
+    isAdmin = true;
+    adminLoginModal.classList.add('hidden');
+    adminPassInput.value = '';
+    showAdmin();
+  } else {
+    adminPassInput.style.borderColor = '#ff6b6b';
+    setTimeout(() => adminPassInput.style.borderColor = '', 1000);
+  }
+}
+
+function showAdmin() { adminSheet.classList.remove('fade-out'); renderAdminPanel(); }
+function hideAdmin() { adminSheet.classList.add('fade-out'); resetNav(); navHome.classList.add('active'); }
+
+function renderAdminPanel() {
+  adminLocList.innerHTML = '';
+  if (!currentLocations.length) {
+    adminLocList.innerHTML = '<p style="color:#666;font-size:0.9rem;">No flowers planted yet.</p>';
+    return;
+  }
   currentLocations.forEach(loc => {
-    const item = document.createElement('div');
-    item.className = 'admin-loc-item';
-    const flowerEmoji = emojis[loc.flower_type] || '🌸';
-    let html = `
-      <div class="admin-loc-header">
-        <strong>${flowerEmoji} ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}</strong>
-        <button class="danger-btn" onclick="deleteLocation('${loc.id}')">Delete Folder</button>
-      </div>`;
-    
-    if (loc.memories && loc.memories.length > 0) {
+    const emoji = emojis[loc.flower_type] || '🌸';
+    const el = document.createElement('div');
+    el.className = 'admin-loc-item';
+    let html = `<div class="admin-loc-header"><strong>${emoji} ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}</strong><button class="danger-btn" onclick="deleteLocation('${loc.id}')">Delete</button></div>`;
+    if (loc.memories?.length) {
       html += `<div class="admin-mem-list">`;
-      loc.memories.forEach(mem => {
-        html += `<div class="admin-mem-item"><span>Photo from ${new Date(mem.date).toLocaleDateString()}</span><button class="danger-btn" onclick="deleteMemory('${mem.id}', '${loc.id}')">Del</button></div>`;
+      loc.memories.forEach(m => {
+        html += `<div class="admin-mem-item"><span>${new Date(m.date).toLocaleDateString()}</span><button class="danger-btn" onclick="deleteMemory('${m.id}')">Del</button></div>`;
       });
       html += `</div>`;
-    } else { html += `<div style="color:#888; font-size:0.8rem; margin-top:0.5rem;">Empty folder</div>`; }
-    item.innerHTML = html; adminLocationsList.appendChild(item);
+    } else {
+      html += `<div style="color:#666;font-size:0.8rem;margin-top:6px;">Empty folder</div>`;
+    }
+    el.innerHTML = html;
+    adminLocList.appendChild(el);
   });
 }
 
-window.deleteLocation = async function(id) {
-  if(!confirm("Are you sure?")) return;
-  try { await window.supabaseDb.from('locations').delete().eq('id', id); await loadLocations(); } 
-  catch (e) { alert("Error deleting location."); }
-}
+window.deleteLocation = async (id) => {
+  if (!confirm('Delete this flower and all its memories?')) return;
+  try { await window.supabaseDb.from('locations').delete().eq('id', id); await loadLocations(); }
+  catch (e) { alert('Error: ' + e.message); }
+};
 
-window.deleteMemory = async function(memId, locId) {
-  if(!confirm("Delete this memory?")) return;
-  try { await window.supabaseDb.from('memories').delete().eq('id', memId); await loadLocations(); } 
-  catch (e) { alert("Error deleting memory."); }
-}
+window.deleteMemory = async (id) => {
+  if (!confirm('Delete this memory?')) return;
+  try { await window.supabaseDb.from('memories').delete().eq('id', id); await loadLocations(); }
+  catch (e) { alert('Error: ' + e.message); }
+};
 
-async function handleAdminPlant() {
-  const input = adminMapLinkInput.value.trim();
-  adminPlantError.style.display = 'none';
+async function handlePlant() {
+  const input = adminMapLink.value.trim();
+  adminPlantErr.style.display = 'none';
   let lat, lng;
-  const rawCoordMatch = input.match(/^(-?\d+\.\d+)[\s,]+(-?\d+\.\d+)$/);
-  const urlCoordMatch = input.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
-  const dmsMatch = input.match(/(\d+)°(\d+)'([\d.]+)"([NS])[\s,]+(\d+)°(\d+)'([\d.]+)"([EW])/i);
 
-  if (rawCoordMatch) { lat = parseFloat(rawCoordMatch[1]); lng = parseFloat(rawCoordMatch[2]); } 
-  else if (urlCoordMatch) { lat = parseFloat(urlCoordMatch[1]); lng = parseFloat(urlCoordMatch[2]); } 
-  else if (dmsMatch) {
-    lat = parseInt(dmsMatch[1]) + parseInt(dmsMatch[2])/60 + parseFloat(dmsMatch[3])/3600;
-    if (dmsMatch[4].toUpperCase() === 'S') lat = -lat;
-    lng = parseInt(dmsMatch[5]) + parseInt(dmsMatch[6])/60 + parseFloat(dmsMatch[7])/3600;
-    if (dmsMatch[8].toUpperCase() === 'W') lng = -lng;
+  const dec = input.match(/^(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)$/);
+  const url = input.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  const dms = input.match(/(\d+)°(\d+)'([\d.]+)"([NS])[,\s]+(\d+)°(\d+)'([\d.]+)"([EW])/i);
+
+  if (dec) { lat = +dec[1]; lng = +dec[2]; }
+  else if (url) { lat = +url[1]; lng = +url[2]; }
+  else if (dms) {
+    lat = +dms[1] + +dms[2]/60 + +dms[3]/3600;
+    if (dms[4].toUpperCase() === 'S') lat = -lat;
+    lng = +dms[5] + +dms[6]/60 + +dms[7]/3600;
+    if (dms[8].toUpperCase() === 'W') lng = -lng;
   } else {
-    adminPlantError.innerText = "Could not parse coordinates. Ensure it is a Decimal (30.044, 31.235) or DMS format.";
-    adminPlantError.style.display = 'block'; return;
+    adminPlantErr.textContent = 'Could not read coordinates. Try: 30.044, 31.235';
+    adminPlantErr.style.display = 'block';
+    return;
   }
-  
-  adminExtractPlantBtn.innerText = "Planting..."; adminExtractPlantBtn.disabled = true;
-  const type = adminFlowerTypeSelect.value;
+
+  adminPlantBtn.textContent = 'Planting... 🌱';
+  adminPlantBtn.disabled = true;
   try {
-    const { error } = await window.supabaseDb.from('locations').insert([{ lat, lng, flower_type: type }]).select();
+    const { error } = await window.supabaseDb.from('locations').insert([{ lat, lng, flower_type: adminFlower.value }]);
     if (error) throw error;
-    adminMapLinkInput.value = ''; await loadLocations(); map.setView([lat, lng], 14);
-  } catch (err) { alert("Failed to plant flower: " + err.message); } 
-  finally { adminExtractPlantBtn.innerText = "Extract & Plant"; adminExtractPlantBtn.disabled = false; }
+    adminMapLink.value = '';
+    await loadLocations();
+    map.setView([lat, lng], 15);
+  } catch (e) { alert('Failed: ' + e.message); }
+  finally { adminPlantBtn.textContent = 'Extract & Plant'; adminPlantBtn.disabled = false; }
 }
 
-// -------------------------
-// MEMORY UPLOADING
-// -------------------------
+// =============================================
+// MEMORY UPLOAD (for map spots)
+// =============================================
 async function saveMemory() {
-  const file = memoryPhotoInput.files[0];
-  if (!file) { alert("Please upload a photo."); return; }
-  saveMemoryBtn.innerText = "Saving..."; saveMemoryBtn.disabled = true;
+  const file = memPhoto.files[0];
+  if (!file) { alert('Please choose a photo.'); return; }
+  saveMemBtn.textContent = 'Saving...'; saveMemBtn.disabled = true;
 
   try {
     const fileName = `${Date.now()}-${file.name}`;
-    const { error: uploadError } = await window.supabaseDb.storage.from('memories').upload(fileName, file);
-    if (uploadError) throw uploadError;
-    const { data: publicUrlData } = window.supabaseDb.storage.from('memories').getPublicUrl(fileName);
-    
-    const newMemory = {
-      location_id: activeLocationId, photo: publicUrlData.publicUrl,
-      date: memoryDateInput.value || new Date().toISOString(),
-      note: memoryNoteInput.value, font: memoryFontSelect.value, bg_color: memoryColorSelect.value
-    };
+    const { error: upErr } = await window.supabaseDb.storage.from('memories').upload(fileName, file);
+    if (upErr) throw upErr;
+    const { data: urlData } = window.supabaseDb.storage.from('memories').getPublicUrl(fileName);
 
-    const { error: dbError } = await window.supabaseDb.from('memories').insert([newMemory]).select();
-    if (dbError) throw dbError;
+    const { error: dbErr } = await window.supabaseDb.from('memories').insert([{
+      location_id: activeLocationId,
+      photo: urlData.publicUrl,
+      date: memDate.value || new Date().toISOString(),
+      note: memNote.value,
+      font: memFont.value,
+      bg_color: memColor.value
+    }]);
+    if (dbErr) throw dbErr;
 
-    addMemoryModal.classList.add('hidden');
-    memoryPhotoInput.value = ''; memoryNoteInput.value = '';
+    addMemModal.classList.add('hidden');
+    memPhoto.value = ''; memNote.value = '';
     await loadLocations();
     const loc = currentLocations.find(l => l.id === activeLocationId);
-    openAlbumSheet(loc);
-  } catch (err) { alert("Failed to save memory: " + err.message); } 
-  finally { saveMemoryBtn.innerText = "Save"; saveMemoryBtn.disabled = false; }
+    if (loc) openAlbumSheet(loc);
+  } catch (e) { alert('Save failed: ' + e.message); }
+  finally { saveMemBtn.textContent = 'Save'; saveMemBtn.disabled = false; }
 }
 
-function toggleVinePath() {
-  if (vinePath) { map.removeLayer(vinePath); vinePath = null; return; }
-  let allMemories = [];
-  currentLocations.forEach(loc => {
-    loc.memories.forEach(m => allMemories.push({ lat: loc.lat, lng: loc.lng, date: new Date(m.date) }));
-  });
-  allMemories.sort((a, b) => a.date - b.date);
-  const latlngs = allMemories.map(m => [m.lat, m.lng]);
-  if (latlngs.length < 2) return;
+// =============================================
+// VISUAL EDITOR — EDIT MODE
+// =============================================
+function toggleEditMode() {
+  isEditMode = !isEditMode;
+  document.body.classList.toggle('edit-mode', isEditMode);
+  editBanner.classList.toggle('hidden', !isEditMode);
+  toggleEditBtn.textContent = isEditMode ? 'Disable Edit Mode' : 'Enable Edit Mode';
 
-  vinePath = L.polyline(latlngs, { color: 'var(--gold)', weight: 3, opacity: 0.8, dashArray: '10, 10', lineCap: 'round' }).addTo(map);
-  const path = vinePath._path;
-  const length = path.getTotalLength();
-  path.style.transition = 'none'; path.style.strokeDasharray = length + ' ' + length; path.style.strokeDashoffset = length;
-  path.getBoundingClientRect();
-  path.style.transition = 'stroke-dashoffset 3s ease-in-out'; path.style.strokeDashoffset = '0';
-}
-
-function createRealisticPetals() {
-  const container = document.getElementById('petal-container');
-  for (let i = 0; i < 15; i++) {
-    const petal = document.createElement('div');
-    petal.classList.add('petal');
-    petal.style.width = `${Math.random() * 12 + 8}px`; petal.style.height = petal.style.width;
-    petal.style.left = `${Math.random() * 100}vw`;
-    petal.style.animationDuration = `${Math.random() * 10 + 15}s`; petal.style.animationDelay = `${Math.random() * 15}s`;
-    container.appendChild(petal);
+  if (isEditMode) {
+    // close admin panel so book is visible
+    hideAdmin();
+    attachEditListeners();
+  } else {
+    removeEditListeners();
   }
 }
 
-if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
+function attachEditListeners() {
+  document.querySelectorAll('.editable-img').forEach(el => {
+    el.addEventListener('click', onImageClick);
+  });
+  document.querySelectorAll('.editable-text').forEach(el => {
+    el.addEventListener('click', onTextClick);
+  });
+}
+
+function removeEditListeners() {
+  document.querySelectorAll('.editable-img').forEach(el => el.removeEventListener('click', onImageClick));
+  document.querySelectorAll('.editable-text').forEach(el => el.removeEventListener('click', onTextClick));
+}
+
+function onImageClick(e) {
+  if (!isEditMode) return;
+  activeEditId = e.currentTarget.dataset.editId;
+  imageEditInput.click();
+}
+
+function onTextClick(e) {
+  if (!isEditMode) return;
+  activeEditId = e.currentTarget.dataset.editId;
+  textEditInput.value = e.currentTarget.innerText;
+  textEditModal.classList.remove('hidden');
+}
+
+// =============================================
+// VISUAL EDITOR — IMAGE UPLOAD
+// =============================================
+async function handleImageUpload() {
+  const file = imageEditInput.files[0];
+  if (!file || !activeEditId) return;
+
+  const btn = document.querySelector(`[data-edit-id="${activeEditId}"]`);
+  if (btn) btn.style.opacity = '0.4';
+
+  try {
+    const fileName = `book/${activeEditId}-${Date.now()}.${file.name.split('.').pop()}`;
+    const { error: upErr } = await window.supabaseDb.storage.from('memories').upload(fileName, file, { upsert: true });
+    if (upErr) throw upErr;
+
+    const { data: urlData } = window.supabaseDb.storage.from('memories').getPublicUrl(fileName);
+    const publicUrl = urlData.publicUrl;
+
+    // Update in DB
+    await upsertBookContent(activeEditId, 'image', publicUrl);
+
+    // Update on page
+    const imgEl = document.querySelector(`img[data-edit-id="${activeEditId}"]`);
+    if (imgEl) imgEl.src = publicUrl;
+  } catch (e) { alert('Upload failed: ' + e.message); }
+  finally {
+    if (btn) btn.style.opacity = '1';
+    imageEditInput.value = '';
+    activeEditId = null;
+  }
+}
+
+// =============================================
+// VISUAL EDITOR — TEXT SAVE
+// =============================================
+async function saveTextEdit() {
+  if (!activeEditId) return;
+  const newText = textEditInput.value.trim();
+  if (!newText) return;
+
+  textEditSave.textContent = 'Saving...'; textEditSave.disabled = true;
+
+  try {
+    await upsertBookContent(activeEditId, 'text', newText);
+    const el = document.querySelector(`[data-edit-id="${activeEditId}"]`);
+    if (el) el.innerText = newText;
+    textEditModal.classList.add('hidden');
+    activeEditId = null;
+  } catch (e) { alert('Save failed: ' + e.message); }
+  finally { textEditSave.textContent = 'Save'; textEditSave.disabled = false; }
+}
+
+// =============================================
+// SUPABASE: BOOK CONTENT
+// =============================================
+async function upsertBookContent(elementId, contentType, contentValue) {
+  const { error } = await window.supabaseDb.from('book_content').upsert({
+    element_id: elementId,
+    content_type: contentType,
+    content_value: contentValue,
+    updated_at: new Date().toISOString()
+  }, { onConflict: 'element_id' });
+  if (error) throw error;
+}
+
+async function loadBookContent() {
+  try {
+    const { data, error } = await window.supabaseDb.from('book_content').select('*');
+    if (error) throw error;
+    if (!data) return;
+
+    data.forEach(row => {
+      if (row.content_type === 'image') {
+        const el = document.querySelector(`img[data-edit-id="${row.element_id}"]`);
+        if (el) el.src = row.content_value;
+      } else if (row.content_type === 'text') {
+        const el = document.querySelector(`[data-edit-id="${row.element_id}"]`);
+        if (el) el.innerText = row.content_value;
+      }
+    });
+  } catch (e) { console.error('loadBookContent:', e); }
+}
+
+// =============================================
+// PETALS
+// =============================================
+function createPetals() {
+  const c = document.getElementById('petal-container');
+  for (let i = 0; i < 12; i++) {
+    const p = document.createElement('div');
+    p.classList.add('petal');
+    const size = Math.random() * 10 + 8;
+    p.style.cssText = `width:${size}px; height:${size}px; left:${Math.random()*100}vw; animation-duration:${Math.random()*12+15}s,${Math.random()*3+2}s; animation-delay:${Math.random()*15}s,0s; opacity:0;`;
+    c.appendChild(p);
+  }
+}
+
+// =============================================
+// BOOT
+// =============================================
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+else init();
