@@ -1,62 +1,95 @@
-// Configuration
-const COUNTDOWN_TARGET = new Date();
-COUNTDOWN_TARGET.setDate(COUNTDOWN_TARGET.getDate() + 60); 
-
+// Global State
 let map;
 let isAdmin = false;
-let markers = [];
 let vinePath = null;
-let selectedLatLng = null;
+let currentLocations = []; // stores locations and their memories
+let activeLocationId = null; // currently opened album
+let tempLatLng = null; // when clicking map to add a location
 
+// DOM Elements
 const landingOverlay = document.getElementById('landing-overlay');
 const enterGardenBtn = document.getElementById('enter-garden-btn');
 const appContainer = document.getElementById('app');
-const adminLoginBtn = document.getElementById('admin-login-btn');
+
+const navHome = document.getElementById('nav-home');
+const navLiveGrowth = document.getElementById('nav-live-growth');
+const navAdmin = document.getElementById('nav-admin');
+
 const adminLoginModal = document.getElementById('admin-login-modal');
 const loginSubmitBtn = document.getElementById('login-submit-btn');
 const loginCancelBtn = document.getElementById('login-cancel-btn');
 const adminPasswordInput = document.getElementById('admin-password');
+
 const adminAddInfo = document.getElementById('admin-add-info');
 const exitAdminBtn = document.getElementById('exit-admin-btn');
+
+const albumSheet = document.getElementById('album-sheet');
+const closeAlbumBtn = document.getElementById('close-album-btn');
+const albumFeed = document.getElementById('album-feed');
+const albumAdminControls = document.getElementById('album-admin-controls');
+const addMemoryToAlbumBtn = document.getElementById('add-memory-to-album-btn');
+
+const addLocationModal = document.getElementById('add-location-modal');
+const saveLocationBtn = document.getElementById('save-location-btn');
+const cancelLocationBtn = document.getElementById('cancel-location-btn');
+const locationFlowerType = document.getElementById('location-flower-type');
+
 const addMemoryModal = document.getElementById('add-memory-modal');
 const saveMemoryBtn = document.getElementById('save-memory-btn');
 const cancelMemoryBtn = document.getElementById('cancel-memory-btn');
 const memoryPhotoInput = document.getElementById('memory-photo');
 const memoryDateInput = document.getElementById('memory-date');
 const memoryNoteInput = document.getElementById('memory-note');
-const memoryFlowerType = document.getElementById('memory-flower-type');
-const liveGrowthBtn = document.getElementById('live-growth-btn');
-const pickupLineTrigger = document.getElementById('pickup-line-trigger');
-const pickupLinePopup = document.getElementById('pickup-line-popup');
-const closePickupLineBtn = document.getElementById('close-pickup-line');
-const countdownTimer = document.getElementById('countdown-timer');
+const memoryFontSelect = document.getElementById('memory-font');
+const memoryColorSelect = document.getElementById('memory-color');
 
-const flowerIcons = {
-  rose: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23e6b3b3" stroke="%23cc9999" stroke-width="1"><path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z"/><path d="M12 7v10M9 12a3 3 0 0 1 6 0"/></svg>`,
+// SVG Icons
+const icons = {
+  red_rose: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23cc0000" stroke="%23880000" stroke-width="1"><path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z"/><path d="M12 7v10M9 12a3 3 0 0 1 6 0"/></svg>`,
+  white_rose: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ffffff" stroke="%23cccccc" stroke-width="1"><path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z"/><path d="M12 7v10M9 12a3 3 0 0 1 6 0"/></svg>`,
+  pink_rose: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ffb6c1" stroke="%23ff69b4" stroke-width="1"><path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z"/><path d="M12 7v10M9 12a3 3 0 0 1 6 0"/></svg>`,
   lily: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23f4f4f4" stroke="%239fbba2" stroke-width="1"><path d="M12 22c4-4 8-8 8-12A8 8 0 0 0 4 10c0 4 4 8 8 12z"/></svg>`,
-  sunflower: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23d4af37" stroke="%23b8962e" stroke-width="1"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1l2.1-2.1M17 7l2.1-2.1"/></svg>`
+  sunflower: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23d4af37" stroke="%23b8962e" stroke-width="1"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1l2.1-2.1M17 7l2.1-2.1"/></svg>`,
+  tulip: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ff69b4" stroke="%23cc0055" stroke-width="1"><path d="M12 22v-7M8 15c-4-4 0-10 4-10s8 6 4 10-8 0-8 0z"/></svg>`,
+  cherry_blossom: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ffc0cb" stroke="%23ffb6c1" stroke-width="1"><circle cx="12" cy="12" r="4"/><path d="M12 2a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4z"/></svg>`,
+  daisy: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ffffff" stroke="%23dddddd" stroke-width="1"><circle cx="12" cy="12" r="3" fill="%23ffcc00"/><path d="M12 4v4M12 16v4M4 12h4M16 12h4"/></svg>`
 };
 
 function init() {
-  createPetals();
-  startCountdown();
+  createRealisticPetals();
+  
   enterGardenBtn.addEventListener('click', enterGarden);
-  adminLoginBtn.addEventListener('click', () => adminLoginModal.classList.remove('hidden'));
+  
+  // Nav
+  navHome.addEventListener('click', () => { closeSheet(); resetNav(); navHome.classList.add('active'); });
+  navLiveGrowth.addEventListener('click', () => { toggleVinePath(); resetNav(); navLiveGrowth.classList.add('active'); });
+  navAdmin.addEventListener('click', () => { adminLoginModal.classList.remove('hidden'); resetNav(); navAdmin.classList.add('active'); });
+  
+  // Admin Login
   loginCancelBtn.addEventListener('click', () => adminLoginModal.classList.add('hidden'));
   loginSubmitBtn.addEventListener('click', handleLogin);
   exitAdminBtn.addEventListener('click', () => {
     isAdmin = false;
     adminAddInfo.classList.add('hidden');
     map.getContainer().style.cursor = '';
+    closeSheet();
   });
-  cancelMemoryBtn.addEventListener('click', () => {
-    addMemoryModal.classList.add('hidden');
-    selectedLatLng = null;
-  });
-  saveMemoryBtn.addEventListener('click', handleSaveMemory);
-  liveGrowthBtn.addEventListener('click', toggleVinePath);
-  pickupLineTrigger.addEventListener('click', () => pickupLinePopup.classList.remove('hidden'));
-  closePickupLineBtn.addEventListener('click', () => pickupLinePopup.classList.add('hidden'));
+
+  // Sheet Controls
+  closeAlbumBtn.addEventListener('click', closeSheet);
+  
+  // Location Modal
+  cancelLocationBtn.addEventListener('click', () => addLocationModal.classList.add('hidden'));
+  saveLocationBtn.addEventListener('click', saveLocation);
+  
+  // Memory Modal
+  addMemoryToAlbumBtn.addEventListener('click', () => addMemoryModal.classList.remove('hidden'));
+  cancelMemoryBtn.addEventListener('click', () => addMemoryModal.classList.add('hidden'));
+  saveMemoryBtn.addEventListener('click', saveMemory);
+}
+
+function resetNav() {
+  document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
 }
 
 function enterGarden() {
@@ -64,150 +97,256 @@ function enterGarden() {
   setTimeout(() => {
     landingOverlay.classList.add('hidden');
     appContainer.classList.remove('hidden');
-    initMap();
-    loadMemories();
+    initMapWithGeolocation();
   }, 1000);
 }
 
-function initMap() {
-  map = L.map('map', { zoomControl: false }).setView([30.0444, 31.2357], 12);
+function initMapWithGeolocation() {
+  map = L.map('map', { zoomControl: false });
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '&copy; OSM', subdomains: 'abcd', maxZoom: 20
   }).addTo(map);
 
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        map.setView([pos.coords.latitude, pos.coords.longitude], 14);
+        loadLocations();
+      },
+      () => {
+        map.setView([30.0444, 31.2357], 12); // Cairo Fallback
+        loadLocations();
+      }
+    );
+  } else {
+    map.setView([30.0444, 31.2357], 12);
+    loadLocations();
+  }
+
   map.on('click', (e) => {
     if (isAdmin) {
-      selectedLatLng = e.latlng;
-      addMemoryModal.classList.remove('hidden');
+      tempLatLng = e.latlng;
+      addLocationModal.classList.remove('hidden');
+    } else {
+      closeSheet();
     }
   });
 }
 
-async function loadMemories() {
+// -------------------------
+// DATA LOADING & RENDERING
+// -------------------------
+async function loadLocations() {
   try {
-    const { data, error } = await window.supabaseDb.from('memories').select('*');
+    const { data, error } = await window.supabaseDb
+      .from('locations')
+      .select('*, memories(*)');
+      
     if (error) throw error;
-    if (data && data.length > 0) {
-      data.forEach(memory => addMarkerToMap(memory));
+    if (data) {
+      currentLocations = data;
+      data.forEach(loc => drawMarker(loc));
     }
   } catch (err) {
-    console.log("Supabase not fully setup. Using mock data.");
-    const mockMemories = [
-      { lat: 30.0444, lng: 31.2357, photo: 'https://images.unsplash.com/photo-1518548419970-58e3b4079ab2', date: '2025-01-01', note: 'First day in Cairo', type: 'rose' }
-    ];
-    mockMemories.forEach(memory => addMarkerToMap(memory));
+    console.error("Failed to load locations:", err);
   }
 }
 
-function addMarkerToMap(memory) {
-  const svgUrl = flowerIcons[memory.type] || flowerIcons.rose;
+function drawMarker(location) {
+  const svgUrl = icons[location.flower_type] || icons.red_rose;
   const icon = L.icon({
-    iconUrl: svgUrl, iconSize: [40, 40], iconAnchor: [20, 20], popupAnchor: [0, -20], className: 'flower-icon'
+    iconUrl: svgUrl, iconSize: [45, 45], iconAnchor: [22, 22], className: 'flower-icon'
   });
-  const marker = L.marker([memory.lat, memory.lng], { icon }).addTo(map);
-  const popupContent = `
-    <div class="polaroid">
-      <img src="${memory.photo}" alt="Memory" />
-      <div class="polaroid-date">${new Date(memory.date).toLocaleDateString()}</div>
-      <div class="polaroid-note">${memory.note}</div>
-    </div>
-  `;
-  marker.bindPopup(popupContent, { closeButton: false });
-  markers.push({ marker, latlng: [memory.lat, memory.lng], date: new Date(memory.date) });
+  
+  const marker = L.marker([location.lat, location.lng], { icon }).addTo(map);
+  
+  marker.on('click', () => {
+    openAlbumSheet(location);
+  });
+  
+  location.marker = marker; // Keep reference
 }
 
-function toggleVinePath() {
-  if (vinePath) { map.removeLayer(vinePath); vinePath = null; return; }
-  markers.sort((a, b) => a.date - b.date);
-  const latlngs = markers.map(m => m.latlng);
-  vinePath = L.polyline(latlngs, { color: 'var(--gold)', weight: 3, opacity: 0.8, dashArray: '10, 10', lineCap: 'round', className: 'vine-path' }).addTo(map);
-  const path = vinePath._path;
-  const length = path.getTotalLength();
-  path.style.transition = path.style.WebkitTransition = 'none';
-  path.style.strokeDasharray = length + ' ' + length;
-  path.style.strokeDashoffset = length;
-  path.getBoundingClientRect();
-  path.style.transition = path.style.WebkitTransition = 'stroke-dashoffset 3s ease-in-out';
-  path.style.strokeDashoffset = '0';
+function openAlbumSheet(location) {
+  activeLocationId = location.id;
+  albumFeed.innerHTML = '';
+  
+  if (isAdmin) {
+    albumAdminControls.classList.remove('hidden');
+  } else {
+    albumAdminControls.classList.add('hidden');
+  }
+
+  if (location.memories && location.memories.length > 0) {
+    // Sort by date oldest first
+    const sorted = [...location.memories].sort((a,b) => new Date(a.date) - new Date(b.date));
+    
+    sorted.forEach(mem => {
+      const card = document.createElement('div');
+      card.className = 'memory-card';
+      card.style.backgroundColor = mem.bg_color;
+      
+      let fontClass = 'font-outfit';
+      if (mem.font === 'Playfair Display') fontClass = 'font-playfair';
+      if (mem.font === 'Caveat') fontClass = 'font-caveat';
+      if (mem.font === 'Dancing Script') fontClass = 'font-dancing';
+      
+      card.innerHTML = \`
+        <img src="\${mem.photo}" alt="Memory" loading="lazy" />
+        <div class="memory-header">
+          <div class="memory-date \${fontClass}">\${new Date(mem.date).toLocaleDateString()}</div>
+        </div>
+        \${mem.note ? \`<div class="memory-note \${fontClass}">\${mem.note}</div>\` : ''}
+      \`;
+      albumFeed.appendChild(card);
+    });
+  } else {
+    albumFeed.innerHTML = \`<p style="text-align:center; color: #888; margin-top:2rem;">A seed was planted here. Waiting to bloom.</p>\`;
+  }
+  
+  albumSheet.classList.add('open');
+}
+
+function closeSheet() {
+  albumSheet.classList.remove('open');
+  activeLocationId = null;
+}
+
+// -------------------------
+// SAVING FLOW
+// -------------------------
+async function saveLocation() {
+  saveLocationBtn.innerText = "Planting...";
+  saveLocationBtn.disabled = true;
+  
+  const type = locationFlowerType.value;
+  const newLoc = { lat: tempLatLng.lat, lng: tempLatLng.lng, flower_type: type };
+  
+  try {
+    const { data, error } = await window.supabaseDb.from('locations').insert([newLoc]).select();
+    if (error) throw error;
+    
+    const savedLoc = { ...data[0], memories: [] };
+    currentLocations.push(savedLoc);
+    drawMarker(savedLoc);
+    
+    addLocationModal.classList.add('hidden');
+    // Instantly open the album to prompt adding a photo
+    openAlbumSheet(savedLoc);
+  } catch (err) {
+    alert("Failed to plant flower: " + err.message);
+  } finally {
+    saveLocationBtn.innerText = "Plant";
+    saveLocationBtn.disabled = false;
+  }
+}
+
+async function saveMemory() {
+  const file = memoryPhotoInput.files[0];
+  if (!file) {
+    alert("Please upload a photo to make this memory bloom.");
+    return;
+  }
+  
+  saveMemoryBtn.innerText = "Saving...";
+  saveMemoryBtn.disabled = true;
+
+  try {
+    const fileName = \`\${Date.now()}-\${file.name}\`;
+    const { error: uploadError } = await window.supabaseDb.storage.from('memories').upload(fileName, file);
+    if (uploadError) throw uploadError;
+    
+    const { data: publicUrlData } = window.supabaseDb.storage.from('memories').getPublicUrl(fileName);
+    const photoUrl = publicUrlData.publicUrl;
+
+    const newMemory = {
+      location_id: activeLocationId,
+      photo: photoUrl,
+      date: memoryDateInput.value || new Date().toISOString(),
+      note: memoryNoteInput.value,
+      font: memoryFontSelect.value,
+      bg_color: memoryColorSelect.value
+    };
+
+    const { data, error: dbError } = await window.supabaseDb.from('memories').insert([newMemory]).select();
+    if (dbError) throw dbError;
+
+    // Update local state
+    const loc = currentLocations.find(l => l.id === activeLocationId);
+    if (loc) {
+      loc.memories.push(data[0]);
+    }
+    
+    // Refresh Sheet
+    addMemoryModal.classList.add('hidden');
+    memoryPhotoInput.value = '';
+    memoryNoteInput.value = '';
+    openAlbumSheet(loc);
+
+  } catch (err) {
+    alert("Failed to save memory: " + err.message);
+  } finally {
+    saveMemoryBtn.innerText = "Save";
+    saveMemoryBtn.disabled = false;
+  }
 }
 
 function handleLogin() {
-  const pwd = adminPasswordInput.value;
-  if (pwd === "bustan") { 
+  if (adminPasswordInput.value === "bustan") { 
     isAdmin = true;
     adminLoginModal.classList.add('hidden');
     adminAddInfo.classList.remove('hidden');
     map.getContainer().style.cursor = 'crosshair';
+    if(activeLocationId) {
+      // Refresh sheet to show Add Memory button
+      const loc = currentLocations.find(l => l.id === activeLocationId);
+      openAlbumSheet(loc);
+    }
   } else {
     alert("Incorrect password");
   }
 }
 
-async function handleSaveMemory() {
-  if (!selectedLatLng) return;
-  saveMemoryBtn.innerText = "Planting...";
-  saveMemoryBtn.disabled = true;
+function toggleVinePath() {
+  if (vinePath) { map.removeLayer(vinePath); vinePath = null; return; }
+  
+  // Collect all memories and sort by date to draw chronological path
+  let allMemories = [];
+  currentLocations.forEach(loc => {
+    loc.memories.forEach(m => {
+      allMemories.push({ lat: loc.lat, lng: loc.lng, date: new Date(m.date) });
+    });
+  });
+  
+  allMemories.sort((a, b) => a.date - b.date);
+  const latlngs = allMemories.map(m => [m.lat, m.lng]);
+  
+  if (latlngs.length < 2) return;
 
-  const file = memoryPhotoInput.files[0];
-  const date = memoryDateInput.value;
-  const note = memoryNoteInput.value;
-  const type = memoryFlowerType.value;
-
-  try {
-    let photoUrl = "https://images.unsplash.com/photo-1518548419970-58e3b4079ab2"; 
-    if (file) {
-      const fileName = `${Date.now()}-${file.name}`;
-      const { data: uploadData, error: uploadError } = await window.supabaseDb.storage
-        .from('memories')
-        .upload(fileName, file);
-      if (uploadError) throw uploadError;
-      const { data: publicUrlData } = window.supabaseDb.storage.from('memories').getPublicUrl(fileName);
-      photoUrl = publicUrlData.publicUrl;
-    }
-
-    const newMemory = { lat: selectedLatLng.lat, lng: selectedLatLng.lng, photo: photoUrl, date: date || new Date().toISOString(), note: note, type: type };
-    const { error: dbError } = await window.supabaseDb.from('memories').insert([newMemory]);
-    if (dbError) throw dbError;
-
-    addMarkerToMap(newMemory);
-    addMemoryModal.classList.add('hidden');
-    memoryPhotoInput.value = '';
-    memoryNoteInput.value = '';
-    
-  } catch (err) {
-    console.error("Error saving memory:", err);
-    alert("Failed to plant memory. " + err.message);
-  } finally {
-    saveMemoryBtn.innerText = "Plant";
-    saveMemoryBtn.disabled = false;
-  }
+  vinePath = L.polyline(latlngs, { color: 'var(--gold)', weight: 3, opacity: 0.8, dashArray: '10, 10', lineCap: 'round' }).addTo(map);
+  const path = vinePath._path;
+  const length = path.getTotalLength();
+  path.style.transition = 'none';
+  path.style.strokeDasharray = length + ' ' + length;
+  path.style.strokeDashoffset = length;
+  path.getBoundingClientRect();
+  path.style.transition = 'stroke-dashoffset 3s ease-in-out';
+  path.style.strokeDashoffset = '0';
 }
 
-function createPetals() {
+function createRealisticPetals() {
   const container = document.getElementById('petal-container');
-  for (let i = 0; i < 30; i++) {
+  // Lower count for elegance
+  for (let i = 0; i < 15; i++) {
     const petal = document.createElement('div');
     petal.classList.add('petal');
-    petal.style.width = `${Math.random() * 15 + 10}px`;
+    petal.style.width = \`\${Math.random() * 12 + 8}px\`;
     petal.style.height = petal.style.width;
-    petal.style.left = `${Math.random() * 100}vw`;
-    petal.style.animationDuration = `${Math.random() * 10 + 10}s`;
-    petal.style.animationDelay = `${Math.random() * 10}s`;
+    petal.style.left = \`\${Math.random() * 100}vw\`;
+    petal.style.animationDuration = \`\${Math.random() * 10 + 15}s\`; // Slower fall (15-25s)
+    petal.style.animationDelay = \`\${Math.random() * 15}s\`;
     container.appendChild(petal);
   }
-}
-
-function startCountdown() {
-  setInterval(() => {
-    const now = new Date();
-    const diff = COUNTDOWN_TARGET - now;
-    if (diff <= 0) { countdownTimer.innerText = "You made it!"; return; }
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-    const mins = Math.floor((diff / 1000 / 60) % 60);
-    const secs = Math.floor((diff / 1000) % 60);
-    countdownTimer.innerText = `${days.toString().padStart(2, '0')}:${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  }, 1000);
 }
 
 if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init); } else { init(); }
