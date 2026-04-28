@@ -221,6 +221,38 @@ button {
   border-color: var(--gold);
 }
 
+/* Fix for File and Date Pickers on Mobile & Desktop */
+input[type="file"].input-field {
+  padding: 0.5rem;
+  cursor: pointer;
+}
+
+input[type="file"]::file-selector-button {
+  background: var(--soft-rose);
+  color: var(--dark-bg);
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-right: 10px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  transition: transform 0.2s;
+}
+
+input[type="file"]::file-selector-button:hover {
+  transform: scale(1.05);
+}
+
+input[type="date"].input-field {
+  cursor: text;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(1);
+}
+
 .modal-actions {
   display: flex;
   gap: 1rem;
