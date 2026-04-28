@@ -3,128 +3,127 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Bustan's Memory Map</title>
+  <title>Bustan x Haleem | Scrapbook</title>
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Dancing+Script:wght@400..700&family=Outfit:wght@300;400;500;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=VT323&family=Caveat:wght@400..700&family=Dancing+Script:wght@400..700&family=Outfit:wght@300;400;500;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
-  <!-- Realistic Petal Container -->
+  <!-- Petal Animation -->
   <div id="petal-container"></div>
 
-  <!-- Landing Overlay -->
-  <div id="landing-overlay" class="overlay active">
-    <div class="glass-panel landing-content">
-      <h1 class="poetic-heading">Everywhere we go,<br>a garden grows.</h1>
-      <p class="subtext">A digital garden of memories.</p>
-      <button id="enter-garden-btn" class="primary-btn">Enter Garden</button>
-    </div>
-  </div>
+  <!-- MAIN SCROLLING WEBSITE -->
+  <div class="scroll-container">
 
-  <!-- Main App (Map) -->
-  <div id="app" class="hidden">
-    <header class="app-header">
-      <h2>Bustan's Garden</h2>
-    </header>
-    
-    <div id="map"></div>
-    
-    <!-- Mobile Navigation Bar -->
-    <nav class="mobile-nav">
-      <button id="nav-home" class="nav-btn active">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        <span>Map</span>
-      </button>
-      <button id="nav-live-growth" class="nav-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-        <span>Path</span>
-      </button>
-      <button id="nav-admin" class="nav-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-        <span>Admin</span>
-      </button>
-    </nav>
-    
-    <div id="admin-add-info" class="hidden glass-panel-small center-top">
-      <p>Tap anywhere on the map to plant a new flower.</p>
-      <button id="exit-admin-btn" class="ghost-btn">Exit Admin Mode</button>
-    </div>
-  </div>
-
-  <!-- Bottom Sheets & Modals -->
-  
-  <!-- 1. Album Sheet (Shows memories for a location) -->
-  <div id="album-sheet" class="bottom-sheet hidden">
-    <div class="sheet-handle"></div>
-    <div class="sheet-header">
-      <h3 class="poetic-heading" style="font-size: 1.8rem; margin: 0;">Memories Here</h3>
-      <button id="close-album-btn" class="icon-btn">&times;</button>
-    </div>
-    <div id="album-feed" class="album-feed">
-      <!-- Memories will be injected here -->
-    </div>
-    <div id="album-admin-controls" class="sheet-footer hidden">
-      <button id="add-memory-to-album-btn" class="primary-btn w-100">Add Memory Here</button>
-    </div>
-  </div>
-
-  <!-- 2. Add Location Modal (When admin clicks map) -->
-  <div id="add-location-modal" class="modal hidden">
-    <div class="glass-panel">
-      <h3>Plant a New Flower</h3>
-      <select id="location-flower-type" class="input-field">
-        <option value="red_rose">Red Rose 🌹</option>
-        <option value="white_rose">White Flower 🌼</option>
-        <option value="pink_rose">Pink Blossom 🌸</option>
-        <option value="lily">Lotus 🪷</option>
-        <option value="sunflower">Sunflower 🌻</option>
-        <option value="tulip">Tulip 🌷</option>
-        <option value="cherry_blossom">Hibiscus 🌺</option>
-        <option value="daisy">Wilted Rose 🥀</option>
-      </select>
-      <div class="modal-actions">
-        <button id="save-location-btn" class="primary-btn">Plant</button>
-        <button id="cancel-location-btn" class="ghost-btn">Cancel</button>
+    <!-- SECTION 1: HERO COVER -->
+    <section id="section-hero" class="scrapbook-page">
+      <div class="retro-window bounce-anim hidden-on-scroll">
+        <div class="retro-title-bar">
+          <span>welcome.exe</span>
+          <div class="retro-btn-group">
+            <button class="retro-btn">_</button>
+            <button class="retro-btn">□</button>
+            <button class="retro-btn">X</button>
+          </div>
+        </div>
+        <div class="retro-content center-content">
+          <h1 class="pixel-heading glow-text">Bustan x Haleem</h1>
+          <p class="pixel-subtext">A Digital Journey</p>
+          
+          <div class="cartoon-placeholder float-anim" style="margin-top: 2rem;">
+            <!-- You can replace this src with your transparent cartoon image -->
+            <img src="https://cdn-icons-png.flaticon.com/512/3238/3238012.png" alt="Cartoon" class="interactive-cartoon" />
+          </div>
+          
+          <p class="scroll-prompt blink-anim">Scroll Down ⬇</p>
+        </div>
       </div>
-    </div>
-  </div>
+    </section>
 
-  <!-- 3. Add Memory Modal (When admin adds memory to album) -->
-  <div id="add-memory-modal" class="modal hidden">
-    <div class="glass-panel scrollable-panel">
-      <h3>Add a Memory</h3>
-      <input type="file" id="memory-photo" accept="image/*" class="input-field" />
-      <input type="date" id="memory-date" class="input-field" />
-      <textarea id="memory-note" placeholder="Write a note..." class="input-field"></textarea>
-      
-      <label class="input-label">Font Style</label>
-      <select id="memory-font" class="input-field">
-        <option value="Outfit">Outfit (Clean)</option>
-        <option value="Playfair Display">Playfair (Elegant)</option>
-        <option value="Caveat">Caveat (Handwriting)</option>
-        <option value="Dancing Script">Dancing (Cursive)</option>
-      </select>
-      
-      <label class="input-label">Card Color</label>
-      <select id="memory-color" class="input-field">
-        <option value="#ffffff">Classic White</option>
-        <option value="#fdf6e3">Cream</option>
-        <option value="#ffe6e6">Soft Rose</option>
-        <option value="#e6f2e6">Sage Green</option>
-        <option value="#e6e6fa">Lavender</option>
-      </select>
-
-      <div class="modal-actions">
-        <button id="save-memory-btn" class="primary-btn">Save</button>
-        <button id="cancel-memory-btn" class="ghost-btn">Cancel</button>
+    <!-- SECTION 2: INTRO -->
+    <section id="section-intro" class="scrapbook-page">
+      <div class="retro-window hidden-on-scroll" style="max-width: 90%;">
+         <div class="retro-title-bar">
+          <span>chapter_1.txt</span>
+          <div class="retro-btn-group"><button class="retro-btn">X</button></div>
+        </div>
+        <div class="retro-content">
+          <h2 class="pixel-heading text-pink">How it started...</h2>
+          <p class="font-outfit" style="margin-bottom: 2rem;">Every great story has a beginning. Ours started perfectly.</p>
+          
+          <div style="display:flex; flex-wrap: wrap; justify-content:space-around; gap: 1rem;">
+            <!-- Placeholder Polaroids -->
+            <div class="polaroid rotate-left pop-anim">
+              <div class="polaroid-img-box">Image Here</div>
+              <p class="font-caveat">Day 1 🌸</p>
+            </div>
+            <div class="polaroid rotate-right pop-anim" style="animation-delay: 0.3s;">
+              <div class="polaroid-img-box">Image Here</div>
+              <p class="font-caveat">Our first date!</p>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
-  </div>
+    </section>
+
+    <!-- SECTION 3: THE MAP -->
+    <section id="section-map" class="scrapbook-page">
+       <div class="retro-window hidden-on-scroll map-window">
+        <div class="retro-title-bar">
+          <span>memory_map.exe</span>
+          <div class="retro-btn-group"><button class="retro-btn">X</button></div>
+        </div>
+        <div class="retro-content" style="flex: 1; padding: 0; position: relative;">
+          <!-- THE ORIGINAL MAP GOES HERE -->
+          <div id="map" style="width: 100%; height: 100%; border-bottom-left-radius: 4px; border-bottom-right-radius: 4px;"></div>
+          
+          <!-- Mobile Navigation Bar overlayed on the map -->
+          <nav class="mobile-nav">
+            <button id="nav-home" class="nav-btn active">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              <span>Map</span>
+            </button>
+            <button id="nav-live-growth" class="nav-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+              <span>Path</span>
+            </button>
+            <button id="nav-admin" class="nav-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <span>Admin</span>
+            </button>
+          </nav>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4: MORE PAGES -->
+    <section id="section-more" class="scrapbook-page">
+      <div class="retro-window bounce-anim hidden-on-scroll">
+         <div class="retro-title-bar">
+          <span>to_be_continued.exe</span>
+          <div class="retro-btn-group"><button class="retro-btn">X</button></div>
+        </div>
+        <div class="retro-content center-content">
+          <h2 class="pixel-heading text-blue" style="margin-bottom:1rem;">More Chapters...</h2>
+          <p class="font-outfit">This is where we will add the Quizzes, The Agreement, and all the other interactive cartoon animations!</p>
+          <div class="cartoon-placeholder spin-anim" style="margin-top: 2rem;">
+            <img src="https://cdn-icons-png.flaticon.com/512/833/833472.png" alt="Heart" style="width: 50px;" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div> <!-- End Scroll Container -->
+
+
+  <!-- ========================================= -->
+  <!-- HIDDEN MODALS AND SHEETS FOR THE MAP APP  -->
+  <!-- ========================================= -->
 
   <!-- Admin Login Modal -->
   <div id="admin-login-modal" class="modal hidden">
@@ -132,8 +131,8 @@
       <h3>Admin Access</h3>
       <input type="password" id="admin-password" placeholder="Enter Password" class="input-field" />
       <div class="modal-actions">
-        <button id="login-submit-btn" class="primary-btn">Login</button>
         <button id="login-cancel-btn" class="ghost-btn">Cancel</button>
+        <button id="login-submit-btn" class="primary-btn">Login</button>
       </div>
     </div>
   </div>
@@ -168,6 +167,54 @@
         <div id="admin-locations-list" style="display: flex; flex-direction: column; gap: 1rem;">
           <!-- Populated by JS -->
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Album Sheet (Shows memories for a location) -->
+  <div id="album-sheet" class="bottom-sheet hidden">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h3 class="poetic-heading" style="font-size: 1.8rem; margin: 0;">Memories Here</h3>
+      <button id="close-album-btn" class="icon-btn">&times;</button>
+    </div>
+    <div class="sheet-content">
+      <div id="album-feed" class="memory-feed"></div>
+    </div>
+    <div id="album-admin-controls" class="sheet-footer hidden">
+      <button id="add-memory-to-album-btn" class="primary-btn w-100">Add Memory Here</button>
+    </div>
+  </div>
+
+  <!-- Add Memory Modal -->
+  <div id="add-memory-modal" class="modal hidden">
+    <div class="glass-panel">
+      <h3>Add a Memory</h3>
+      
+      <input type="file" id="memory-photo" accept="image/*" class="input-field" />
+      <input type="date" id="memory-date" class="input-field" />
+      <textarea id="memory-note" placeholder="Write a memory..." class="input-field" rows="3"></textarea>
+      
+      <label class="subtext" style="display:block; text-align:left; margin-bottom: 5px;">Font Style:</label>
+      <select id="memory-font" class="input-field">
+        <option value="Outfit">Modern (Outfit)</option>
+        <option value="Playfair Display">Classic (Playfair)</option>
+        <option value="Caveat">Handwriting (Caveat)</option>
+        <option value="Dancing Script">Cursive (Dancing Script)</option>
+      </select>
+
+      <label class="subtext" style="display:block; text-align:left; margin-bottom: 5px;">Polaroid Color:</label>
+      <select id="memory-color" class="input-field">
+        <option value="#ffffff">Classic White</option>
+        <option value="#fff9e6">Vintage Cream</option>
+        <option value="#ffe6e6">Soft Rose</option>
+        <option value="#e6ffe6">Mint Sage</option>
+        <option value="#f2e6ff">Lavender</option>
+      </select>
+
+      <div class="modal-actions">
+        <button id="cancel-memory-btn" class="ghost-btn">Cancel</button>
+        <button id="save-memory-btn" class="primary-btn">Save</button>
       </div>
     </div>
   </div>
