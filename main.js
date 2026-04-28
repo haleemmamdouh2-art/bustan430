@@ -166,10 +166,10 @@ async function loadLocations() {
 function drawMarker(location) {
   const emoji = emojis[location.flower_type] || emojis.red_rose;
   const icon = L.divIcon({
-    html: `<div style="font-size: 38px; text-shadow: 0 4px 10px rgba(0,0,0,0.6); text-align: center; line-height: 40px; width: 40px; height: 40px;">${emoji}</div>`,
+    html: `<div style="font-size: 26px; text-shadow: 0 4px 6px rgba(0,0,0,0.6); text-align: center; line-height: 26px; width: 26px; height: 26px;">${emoji}</div>`,
     className: 'flower-icon',
-    iconSize: [40, 40],
-    iconAnchor: [20, 20]
+    iconSize: [26, 26],
+    iconAnchor: [13, 13]
   });
   
   const marker = L.marker([location.lat, location.lng], { icon }).addTo(map);
