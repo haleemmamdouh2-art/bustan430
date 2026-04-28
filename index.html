@@ -7,15 +7,17 @@
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Dancing+Script:wght@400..700&family=Outfit:wght@300;400;500;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
   
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
+  <!-- Realistic Petal Container -->
   <div id="petal-container"></div>
 
+  <!-- Landing Overlay -->
   <div id="landing-overlay" class="overlay active">
     <div class="glass-panel landing-content">
       <h1 class="poetic-heading">Everywhere we go,<br>a garden grows.</h1>
@@ -24,41 +26,107 @@
     </div>
   </div>
 
+  <!-- Main App (Map) -->
   <div id="app" class="hidden">
     <header class="app-header">
       <h2>Bustan's Garden</h2>
-      <button id="admin-login-btn" class="ghost-btn admin-trigger">Admin</button>
     </header>
     
     <div id="map"></div>
     
-    <div id="countdown-widget" class="glass-panel-small countdown">
-      <div class="countdown-title">Next Milestone</div>
-      <div id="countdown-timer">00:00:00:00</div>
-    </div>
-    
-    <button id="live-growth-btn" class="floating-btn action-btn tooltip-trigger" aria-label="Live Growth Mode">
-      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-      <span class="tooltip">Grow Vine Path</span>
-    </button>
+    <!-- Mobile Navigation Bar -->
+    <nav class="mobile-nav">
+      <button id="nav-home" class="nav-btn active">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span>Map</span>
+      </button>
+      <button id="nav-live-growth" class="nav-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <span>Growth</span>
+      </button>
+      <button id="nav-admin" class="nav-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span>Admin</span>
+      </button>
+    </nav>
     
     <div id="admin-add-info" class="hidden glass-panel-small center-top">
-      <p>Tap anywhere on the map to plant a memory.</p>
-      <button id="exit-admin-btn" class="ghost-btn">Exit Admin</button>
+      <p>Tap anywhere on the map to plant a new flower.</p>
+      <button id="exit-admin-btn" class="ghost-btn">Exit Admin Mode</button>
     </div>
-    
-    <div class="easter-egg-footer" id="pickup-line-trigger">
-      <span>♥</span>
+  </div>
+
+  <!-- Bottom Sheets & Modals -->
+  
+  <!-- 1. Album Sheet (Shows memories for a location) -->
+  <div id="album-sheet" class="bottom-sheet hidden">
+    <div class="sheet-handle"></div>
+    <div class="sheet-header">
+      <h3 class="poetic-heading" style="font-size: 1.8rem; margin: 0;">Memories Here</h3>
+      <button id="close-album-btn" class="icon-btn">&times;</button>
     </div>
-    <div id="pickup-line-popup" class="hidden modal">
-      <div class="glass-panel">
-        <h3 class="romantic-text">For Bustan</h3>
-        <p>"They say a 'Bustan' needs a 'Haleem' gardener to truly bloom. Good thing I’m not going anywhere."</p>
-        <button id="close-pickup-line" class="primary-btn mt-4">Close</button>
+    <div id="album-feed" class="album-feed">
+      <!-- Memories will be injected here -->
+    </div>
+    <div id="album-admin-controls" class="sheet-footer hidden">
+      <button id="add-memory-to-album-btn" class="primary-btn w-100">Add Memory Here</button>
+    </div>
+  </div>
+
+  <!-- 2. Add Location Modal (When admin clicks map) -->
+  <div id="add-location-modal" class="modal hidden">
+    <div class="glass-panel">
+      <h3>Plant a New Flower</h3>
+      <select id="location-flower-type" class="input-field">
+        <option value="red_rose">Red Rose</option>
+        <option value="white_rose">White Rose</option>
+        <option value="pink_rose">Pink Rose</option>
+        <option value="lily">Lily</option>
+        <option value="sunflower">Sunflower</option>
+        <option value="tulip">Tulip</option>
+        <option value="cherry_blossom">Cherry Blossom</option>
+        <option value="daisy">Daisy</option>
+      </select>
+      <div class="modal-actions">
+        <button id="save-location-btn" class="primary-btn">Plant</button>
+        <button id="cancel-location-btn" class="ghost-btn">Cancel</button>
       </div>
     </div>
   </div>
 
+  <!-- 3. Add Memory Modal (When admin adds memory to album) -->
+  <div id="add-memory-modal" class="modal hidden">
+    <div class="glass-panel scrollable-panel">
+      <h3>Add a Memory</h3>
+      <input type="file" id="memory-photo" accept="image/*" class="input-field" />
+      <input type="date" id="memory-date" class="input-field" />
+      <textarea id="memory-note" placeholder="Write a note..." class="input-field"></textarea>
+      
+      <label class="input-label">Font Style</label>
+      <select id="memory-font" class="input-field">
+        <option value="Outfit">Outfit (Clean)</option>
+        <option value="Playfair Display">Playfair (Elegant)</option>
+        <option value="Caveat">Caveat (Handwriting)</option>
+        <option value="Dancing Script">Dancing (Cursive)</option>
+      </select>
+      
+      <label class="input-label">Card Color</label>
+      <select id="memory-color" class="input-field">
+        <option value="#ffffff">Classic White</option>
+        <option value="#fdf6e3">Cream</option>
+        <option value="#ffe6e6">Soft Rose</option>
+        <option value="#e6f2e6">Sage Green</option>
+        <option value="#e6e6fa">Lavender</option>
+      </select>
+
+      <div class="modal-actions">
+        <button id="save-memory-btn" class="primary-btn">Save</button>
+        <button id="cancel-memory-btn" class="ghost-btn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Login Modal -->
   <div id="admin-login-modal" class="modal hidden">
     <div class="glass-panel">
       <h3>Admin Access</h3>
@@ -70,29 +138,9 @@
     </div>
   </div>
 
-  <div id="add-memory-modal" class="modal hidden">
-    <div class="glass-panel">
-      <h3>Plant a Memory</h3>
-      <input type="file" id="memory-photo" accept="image/*" class="input-field" />
-      <input type="date" id="memory-date" class="input-field" />
-      <textarea id="memory-note" placeholder="Write a short note..." class="input-field"></textarea>
-      <select id="memory-flower-type" class="input-field">
-        <option value="rose">Rose</option>
-        <option value="lily">Lily</option>
-        <option value="sunflower">Sunflower</option>
-      </select>
-      <div class="modal-actions">
-        <button id="save-memory-btn" class="primary-btn">Plant</button>
-        <button id="cancel-memory-btn" class="ghost-btn">Cancel</button>
-      </div>
-    </div>
-  </div>
-
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  
   <script src="supabase.js"></script>
   <script src="main.js"></script>
-
 </body>
 </html>
