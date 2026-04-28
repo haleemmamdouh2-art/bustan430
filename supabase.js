@@ -1,9 +1,7 @@
 // Initialize Supabase Client
-// Please replace these with your actual Supabase URL and Anon Key from the Supabase Dashboard.
-// NEVER commit your real secret keys to GitHub!
 
-const supabaseUrl = 'https://replace-with-your-project.supabase.co'; 
-const supabaseKey = 'YOUR_SUPABASE_ANON_KEY';
+const supabaseUrl = 'https://byqfgirtizfubmvrkuts.supabase.co'; 
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5cWZnaXJ0aXpmdmJtdnJrdXRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMjE0MjksImV4cCI6MjA5Mjg5NzQyOX0.KIh1RSlwO0ps4vT4tFBvB4qiamCxLyLhCtUvaVnYUvY';
 
 // We wrap this in a try/catch so the app doesn't crash if the URL is invalid
 let supabaseClient;
