@@ -43,16 +43,16 @@ const memoryNoteInput = document.getElementById('memory-note');
 const memoryFontSelect = document.getElementById('memory-font');
 const memoryColorSelect = document.getElementById('memory-color');
 
-// SVG Icons
-const icons = {
-  red_rose: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23cc0000" stroke="%23880000" stroke-width="1"><path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z"/><path d="M12 7v10M9 12a3 3 0 0 1 6 0"/></svg>`,
-  white_rose: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ffffff" stroke="%23cccccc" stroke-width="1"><path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z"/><path d="M12 7v10M9 12a3 3 0 0 1 6 0"/></svg>`,
-  pink_rose: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ffb6c1" stroke="%23ff69b4" stroke-width="1"><path d="M12 21a9 9 0 1 1 0-18 9 9 0 0 1 0 18z"/><path d="M12 7v10M9 12a3 3 0 0 1 6 0"/></svg>`,
-  lily: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23f4f4f4" stroke="%239fbba2" stroke-width="1"><path d="M12 22c4-4 8-8 8-12A8 8 0 0 0 4 10c0 4 4 8 8 12z"/></svg>`,
-  sunflower: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23d4af37" stroke="%23b8962e" stroke-width="1"><circle cx="12" cy="12" r="5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1l2.1-2.1M17 7l2.1-2.1"/></svg>`,
-  tulip: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ff69b4" stroke="%23cc0055" stroke-width="1"><path d="M12 22v-7M8 15c-4-4 0-10 4-10s8 6 4 10-8 0-8 0z"/></svg>`,
-  cherry_blossom: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ffc0cb" stroke="%23ffb6c1" stroke-width="1"><circle cx="12" cy="12" r="4"/><path d="M12 2a4 4 0 0 1 4 4 4 4 0 0 1-4 4 4 4 0 0 1-4-4 4 4 0 0 1 4-4z"/></svg>`,
-  daisy: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ffffff" stroke="%23dddddd" stroke-width="1"><circle cx="12" cy="12" r="3" fill="%23ffcc00"/><path d="M12 4v4M12 16v4M4 12h4M16 12h4"/></svg>`
+// Emojis for markers
+const emojis = {
+  red_rose: '🌹',
+  white_rose: '🌼',
+  pink_rose: '🌸',
+  lily: '🪷',
+  sunflower: '🌻',
+  tulip: '🌷',
+  cherry_blossom: '🌺',
+  daisy: '🥀'
 };
 
 function init() {
@@ -153,9 +153,12 @@ async function loadLocations() {
 }
 
 function drawMarker(location) {
-  const svgUrl = icons[location.flower_type] || icons.red_rose;
-  const icon = L.icon({
-    iconUrl: svgUrl, iconSize: [45, 45], iconAnchor: [22, 22], className: 'flower-icon'
+  const emoji = emojis[location.flower_type] || emojis.red_rose;
+  const icon = L.divIcon({
+    html: `<div style="font-size: 38px; text-shadow: 0 4px 10px rgba(0,0,0,0.6); text-align: center; line-height: 40px; width: 40px; height: 40px;">${emoji}</div>`,
+    className: 'flower-icon',
+    iconSize: [40, 40],
+    iconAnchor: [20, 20]
   });
   
   const marker = L.marker([location.lat, location.lng], { icon }).addTo(map);
