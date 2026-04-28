@@ -1,5 +1,6 @@
 // Global State
 let map;
+let pageFlip;
 let isAdmin = false;
 let vinePath = null;
 let currentLocations = []; 
@@ -46,7 +47,36 @@ const emojis = {
 
 function init() {
   createRealisticPetals();
-  initScrollAnimations();
+  
+  // 1. Initialize Flipbook
+  const bookEl = document.getElementById('book');
+  if (window.St && window.St.PageFlip) {
+    pageFlip = new window.St.PageFlip(bookEl, {
+      width: 400, // Base width
+      height: 600, // Base height
+      size: 'stretch',
+      minWidth: 300,
+      maxWidth: 1000,
+      minHeight: 400,
+      maxHeight: 1000,
+      maxShadowOpacity: 0.5,
+      showCover: true,
+      mobileScrollSupport: false,
+      usePortrait: true // Forces 1 page on mobile, 2 on desktop
+    });
+
+    pageFlip.loadFromHTML(document.querySelectorAll('.page'));
+
+    // Fix map rendering when flipping to the map page
+    pageFlip.on('flip', (e) => {
+      // If we flip to page 3 (index 3), invalidate the map size so it renders perfectly
+      if (e.data === 3 && map) {
+        setTimeout(() => map.invalidateSize(), 300);
+      }
+    });
+  }
+
+  // 2. Initialize Map
   initMapWithGeolocation();
   
   // Nav
@@ -83,22 +113,6 @@ function init() {
 }
 
 // -------------------------
-// SCROLL ANIMATIONS
-// -------------------------
-function initScrollAnimations() {
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-      if (entry.isIntersecting) {
-        entry.target.classList.add('show-on-scroll');
-        entry.target.classList.remove('hidden-on-scroll');
-      }
-    });
-  }, { threshold: 0.1 });
-
-  document.querySelectorAll('.hidden-on-scroll').forEach(el => observer.observe(el));
-}
-
-// -------------------------
 // MAP INITIALIZATION
 // -------------------------
 function resetNav() {
@@ -106,7 +120,7 @@ function resetNav() {
 }
 
 function initMapWithGeolocation() {
-  // Disable dragging on mobile so users don't get stuck scrolling the page
+  // Disable dragging on mobile so users don't accidentally turn the page while panning
   map = L.map('map', { 
     zoomControl: false,
     dragging: !L.Browser.mobile,
