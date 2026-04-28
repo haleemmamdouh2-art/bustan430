@@ -153,13 +153,13 @@ function addMarkerToMap(memory) {
   const marker = L.marker([memory.lat, memory.lng], { icon }).addTo(map);
   
   // Polaroid Popup
-  const popupContent = \`
+  const popupContent = `
     <div class="polaroid">
-      <img src="\${memory.photo}" alt="Memory" />
-      <div class="polaroid-date">\${new Date(memory.date).toLocaleDateString()}</div>
-      <div class="polaroid-note">\${memory.note}</div>
+      <img src="${memory.photo}" alt="Memory" />
+      <div class="polaroid-date">${new Date(memory.date).toLocaleDateString()}</div>
+      <div class="polaroid-note">${memory.note}</div>
     </div>
-  \`;
+  `;
   
   marker.bindPopup(popupContent, { closeButton: false });
   
@@ -233,7 +233,7 @@ async function handleSaveMemory() {
     
     // Upload image to Supabase if provided
     if (file) {
-      const fileName = \`\${Date.now()}-\${file.name}\`;
+      const fileName = `${Date.now()}-${file.name}`;
       const { data: uploadData, error: uploadError } = await window.supabaseDb.storage
         .from('memories')
         .upload(fileName, file);
@@ -292,11 +292,11 @@ function createPetals() {
     const duration = Math.random() * 10 + 10; // 10-20s
     const delay = Math.random() * 10; // 0-10s
     
-    petal.style.width = \`\${size}px\`;
-    petal.style.height = \`\${size}px\`;
-    petal.style.left = \`\${left}vw\`;
-    petal.style.animationDuration = \`\${duration}s\`;
-    petal.style.animationDelay = \`\${delay}s\`;
+    petal.style.width = `${size}px`;
+    petal.style.height = `${size}px`;
+    petal.style.left = `${left}vw`;
+    petal.style.animationDuration = `${duration}s`;
+    petal.style.animationDelay = `${delay}s`;
     
     container.appendChild(petal);
   }
@@ -318,9 +318,13 @@ function startCountdown() {
     const mins = Math.floor((diff / 1000 / 60) % 60);
     const secs = Math.floor((diff / 1000) % 60);
     
-    countdownTimer.innerText = \`\${days.toString().padStart(2, '0')}:\${hours.toString().padStart(2, '0')}:\${mins.toString().padStart(2, '0')}:\${secs.toString().padStart(2, '0')}\`;
+    countdownTimer.innerText = `${days.toString().padStart(2, '0')}:${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }, 1000);
 }
 
 // Run init
-document.addEventListener('DOMContentLoaded', init);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
