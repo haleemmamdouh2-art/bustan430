@@ -4,7 +4,6 @@ let isAdmin = false;
 let vinePath = null;
 let currentLocations = []; // stores locations and their memories
 let activeLocationId = null; // currently opened album
-let tempLatLng = null; // when clicking map to add a location
 
 // DOM Elements
 const landingOverlay = document.getElementById('landing-overlay');
@@ -20,19 +19,19 @@ const loginSubmitBtn = document.getElementById('login-submit-btn');
 const loginCancelBtn = document.getElementById('login-cancel-btn');
 const adminPasswordInput = document.getElementById('admin-password');
 
-const adminAddInfo = document.getElementById('admin-add-info');
-const exitAdminBtn = document.getElementById('exit-admin-btn');
+const adminDashboardSheet = document.getElementById('admin-dashboard-sheet');
+const closeAdminDashboardBtn = document.getElementById('close-admin-dashboard-btn');
+const adminMapLinkInput = document.getElementById('admin-map-link');
+const adminFlowerTypeSelect = document.getElementById('admin-flower-type');
+const adminExtractPlantBtn = document.getElementById('admin-extract-plant-btn');
+const adminPlantError = document.getElementById('admin-plant-error');
+const adminLocationsList = document.getElementById('admin-locations-list');
 
 const albumSheet = document.getElementById('album-sheet');
 const closeAlbumBtn = document.getElementById('close-album-btn');
 const albumFeed = document.getElementById('album-feed');
 const albumAdminControls = document.getElementById('album-admin-controls');
 const addMemoryToAlbumBtn = document.getElementById('add-memory-to-album-btn');
-
-const addLocationModal = document.getElementById('add-location-modal');
-const saveLocationBtn = document.getElementById('save-location-btn');
-const cancelLocationBtn = document.getElementById('cancel-location-btn');
-const locationFlowerType = document.getElementById('location-flower-type');
 
 const addMemoryModal = document.getElementById('add-memory-modal');
 const saveMemoryBtn = document.getElementById('save-memory-btn');
@@ -63,24 +62,27 @@ function init() {
   // Nav
   navHome.addEventListener('click', () => { closeSheet(); resetNav(); navHome.classList.add('active'); });
   navLiveGrowth.addEventListener('click', () => { toggleVinePath(); resetNav(); navLiveGrowth.classList.add('active'); });
-  navAdmin.addEventListener('click', () => { adminLoginModal.classList.remove('hidden'); resetNav(); navAdmin.classList.add('active'); });
+  navAdmin.addEventListener('click', () => { 
+    if (isAdmin) {
+      openAdminDashboard();
+    } else {
+      adminLoginModal.classList.remove('hidden'); 
+    }
+    resetNav(); navAdmin.classList.add('active'); 
+  });
   
-  // Admin Login
+  // Admin Login & Dashboard
   loginCancelBtn.addEventListener('click', () => adminLoginModal.classList.add('hidden'));
   loginSubmitBtn.addEventListener('click', handleLogin);
-  exitAdminBtn.addEventListener('click', () => {
-    isAdmin = false;
-    adminAddInfo.classList.add('hidden');
-    map.getContainer().style.cursor = '';
-    closeSheet();
+  closeAdminDashboardBtn.addEventListener('click', () => {
+    adminDashboardSheet.classList.add('fade-out');
+    resetNav();
+    navHome.classList.add('active');
   });
+  adminExtractPlantBtn.addEventListener('click', handleAdminPlant);
 
   // Sheet Controls
   closeAlbumBtn.addEventListener('click', closeSheet);
-  
-  // Location Modal
-  cancelLocationBtn.addEventListener('click', () => addLocationModal.classList.add('hidden'));
-  saveLocationBtn.addEventListener('click', saveLocation);
   
   // Memory Modal
   addMemoryToAlbumBtn.addEventListener('click', () => addMemoryModal.classList.remove('hidden'));
@@ -123,13 +125,8 @@ function initMapWithGeolocation() {
     loadLocations();
   }
 
-  map.on('click', (e) => {
-    if (isAdmin) {
-      tempLatLng = e.latlng;
-      addLocationModal.classList.remove('hidden');
-    } else {
-      closeSheet();
-    }
+  map.on('click', () => {
+    closeSheet();
   });
 }
 
@@ -144,8 +141,17 @@ async function loadLocations() {
       
     if (error) throw error;
     if (data) {
+      // Clear existing markers from map
+      currentLocations.forEach(loc => {
+        if(loc.marker) map.removeLayer(loc.marker);
+      });
+      
       currentLocations = data;
-      data.forEach(loc => drawMarker(loc));
+      currentLocations.forEach(loc => drawMarker(loc));
+      
+      if (isAdmin && !adminDashboardSheet.classList.contains('fade-out')) {
+        renderAdminDashboard();
+      }
     }
   } catch (err) {
     console.error("Failed to load locations:", err);
@@ -167,7 +173,7 @@ function drawMarker(location) {
     openAlbumSheet(location);
   });
   
-  location.marker = marker; // Keep reference
+  location.marker = marker;
 }
 
 function openAlbumSheet(location) {
@@ -181,7 +187,6 @@ function openAlbumSheet(location) {
   }
 
   if (location.memories && location.memories.length > 0) {
-    // Sort by date oldest first
     const sorted = [...location.memories].sort((a,b) => new Date(a.date) - new Date(b.date));
     
     sorted.forEach(mem => {
@@ -216,34 +221,130 @@ function closeSheet() {
 }
 
 // -------------------------
-// SAVING FLOW
+// ADMIN DASHBOARD
 // -------------------------
-async function saveLocation() {
-  saveLocationBtn.innerText = "Planting...";
-  saveLocationBtn.disabled = true;
+function handleLogin() {
+  if (adminPasswordInput.value === "bustan") { 
+    isAdmin = true;
+    adminLoginModal.classList.add('hidden');
+    openAdminDashboard();
+  } else {
+    alert("Incorrect password");
+  }
+}
+
+function openAdminDashboard() {
+  adminDashboardSheet.classList.remove('fade-out');
+  renderAdminDashboard();
+}
+
+function renderAdminDashboard() {
+  adminLocationsList.innerHTML = '';
+  if (currentLocations.length === 0) {
+    adminLocationsList.innerHTML = `<p style="color:#888;">No flowers planted yet.</p>`;
+    return;
+  }
   
-  const type = locationFlowerType.value;
-  const newLoc = { lat: tempLatLng.lat, lng: tempLatLng.lng, flower_type: type };
+  currentLocations.forEach(loc => {
+    const item = document.createElement('div');
+    item.className = 'admin-loc-item';
+    const flowerEmoji = emojis[loc.flower_type] || '🌸';
+    
+    let html = `
+      <div class="admin-loc-header">
+        <strong>${flowerEmoji} ${loc.lat.toFixed(4)}, ${loc.lng.toFixed(4)}</strong>
+        <button class="danger-btn" onclick="deleteLocation('${loc.id}')">Delete Folder</button>
+      </div>
+    `;
+    
+    if (loc.memories && loc.memories.length > 0) {
+      html += `<div class="admin-mem-list">`;
+      loc.memories.forEach(mem => {
+        html += `
+          <div class="admin-mem-item">
+            <span>Photo from ${new Date(mem.date).toLocaleDateString()}</span>
+            <button class="danger-btn" onclick="deleteMemory('${mem.id}', '${loc.id}')">Del</button>
+          </div>
+        `;
+      });
+      html += `</div>`;
+    } else {
+      html += `<div style="color:#888; font-size:0.8rem; margin-top:0.5rem;">Empty folder</div>`;
+    }
+    
+    item.innerHTML = html;
+    adminLocationsList.appendChild(item);
+  });
+}
+
+// Global functions for inline onclick handlers
+window.deleteLocation = async function(id) {
+  if(!confirm("Are you sure you want to delete this folder and ALL its memories?")) return;
+  try {
+    await window.supabaseDb.from('locations').delete().eq('id', id);
+    await loadLocations(); // Refresh
+  } catch (e) {
+    alert("Error deleting location.");
+  }
+}
+
+window.deleteMemory = async function(memId, locId) {
+  if(!confirm("Delete this memory?")) return;
+  try {
+    await window.supabaseDb.from('memories').delete().eq('id', memId);
+    await loadLocations(); // Refresh
+  } catch (e) {
+    alert("Error deleting memory.");
+  }
+}
+
+async function handleAdminPlant() {
+  const input = adminMapLinkInput.value.trim();
+  adminPlantError.style.display = 'none';
+  
+  let lat, lng;
+  
+  // Match raw coordinates like "30.044, 31.235"
+  const rawCoordMatch = input.match(/^(-?\d+\.\d+)[\s,]+(-?\d+\.\d+)$/);
+  // Match full google maps link containing "@lat,lng"
+  const urlCoordMatch = input.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+
+  if (rawCoordMatch) {
+    lat = parseFloat(rawCoordMatch[1]);
+    lng = parseFloat(rawCoordMatch[2]);
+  } else if (urlCoordMatch) {
+    lat = parseFloat(urlCoordMatch[1]);
+    lng = parseFloat(urlCoordMatch[2]);
+  } else {
+    adminPlantError.innerText = "Could not find coordinates. Please paste a full Google Maps link containing '@lat,lng' OR paste raw coordinates like '30.044, 31.235'.";
+    adminPlantError.style.display = 'block';
+    return;
+  }
+  
+  adminExtractPlantBtn.innerText = "Planting...";
+  adminExtractPlantBtn.disabled = true;
+  
+  const type = adminFlowerTypeSelect.value;
+  const newLoc = { lat, lng, flower_type: type };
   
   try {
     const { data, error } = await window.supabaseDb.from('locations').insert([newLoc]).select();
     if (error) throw error;
     
-    const savedLoc = { ...data[0], memories: [] };
-    currentLocations.push(savedLoc);
-    drawMarker(savedLoc);
-    
-    addLocationModal.classList.add('hidden');
-    // Instantly open the album to prompt adding a photo
-    openAlbumSheet(savedLoc);
+    adminMapLinkInput.value = '';
+    await loadLocations(); // Refresh everything
+    map.setView([lat, lng], 14); // Jump to new location
   } catch (err) {
     alert("Failed to plant flower: " + err.message);
   } finally {
-    saveLocationBtn.innerText = "Plant";
-    saveLocationBtn.disabled = false;
+    adminExtractPlantBtn.innerText = "Extract & Plant";
+    adminExtractPlantBtn.disabled = false;
   }
 }
 
+// -------------------------
+// MEMORY UPLOADING
+// -------------------------
 async function saveMemory() {
   const file = memoryPhotoInput.files[0];
   if (!file) {
@@ -274,16 +375,13 @@ async function saveMemory() {
     const { data, error: dbError } = await window.supabaseDb.from('memories').insert([newMemory]).select();
     if (dbError) throw dbError;
 
-    // Update local state
-    const loc = currentLocations.find(l => l.id === activeLocationId);
-    if (loc) {
-      loc.memories.push(data[0]);
-    }
-    
     // Refresh Sheet
     addMemoryModal.classList.add('hidden');
     memoryPhotoInput.value = '';
     memoryNoteInput.value = '';
+    await loadLocations();
+    
+    const loc = currentLocations.find(l => l.id === activeLocationId);
     openAlbumSheet(loc);
 
   } catch (err) {
@@ -294,26 +392,9 @@ async function saveMemory() {
   }
 }
 
-function handleLogin() {
-  if (adminPasswordInput.value === "bustan") { 
-    isAdmin = true;
-    adminLoginModal.classList.add('hidden');
-    adminAddInfo.classList.remove('hidden');
-    map.getContainer().style.cursor = 'crosshair';
-    if(activeLocationId) {
-      // Refresh sheet to show Add Memory button
-      const loc = currentLocations.find(l => l.id === activeLocationId);
-      openAlbumSheet(loc);
-    }
-  } else {
-    alert("Incorrect password");
-  }
-}
-
 function toggleVinePath() {
   if (vinePath) { map.removeLayer(vinePath); vinePath = null; return; }
   
-  // Collect all memories and sort by date to draw chronological path
   let allMemories = [];
   currentLocations.forEach(loc => {
     loc.memories.forEach(m => {
@@ -339,14 +420,13 @@ function toggleVinePath() {
 
 function createRealisticPetals() {
   const container = document.getElementById('petal-container');
-  // Lower count for elegance
   for (let i = 0; i < 15; i++) {
     const petal = document.createElement('div');
     petal.classList.add('petal');
     petal.style.width = `${Math.random() * 12 + 8}px`;
     petal.style.height = petal.style.width;
     petal.style.left = `${Math.random() * 100}vw`;
-    petal.style.animationDuration = `${Math.random() * 10 + 15}s`; // Slower fall (15-25s)
+    petal.style.animationDuration = `${Math.random() * 10 + 15}s`; 
     petal.style.animationDelay = `${Math.random() * 15}s`;
     container.appendChild(petal);
   }
