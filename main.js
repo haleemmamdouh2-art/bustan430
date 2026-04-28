@@ -60,7 +60,12 @@ function init() {
   enterGardenBtn.addEventListener('click', enterGarden);
   
   // Nav
-  navHome.addEventListener('click', () => { closeSheet(); resetNav(); navHome.classList.add('active'); });
+  navHome.addEventListener('click', () => { 
+    closeSheet(); 
+    adminDashboardSheet.classList.add('fade-out');
+    resetNav(); 
+    navHome.classList.add('active'); 
+  });
   navLiveGrowth.addEventListener('click', () => { toggleVinePath(); resetNav(); navLiveGrowth.classList.add('active'); });
   navAdmin.addEventListener('click', () => { 
     if (isAdmin) {
@@ -304,10 +309,12 @@ async function handleAdminPlant() {
   
   let lat, lng;
   
-  // Match raw coordinates like "30.044, 31.235"
+  // 1. Match standard decimal: "30.044, 31.235"
   const rawCoordMatch = input.match(/^(-?\d+\.\d+)[\s,]+(-?\d+\.\d+)$/);
-  // Match full google maps link containing "@lat,lng"
+  // 2. Match full google maps link containing "@lat,lng"
   const urlCoordMatch = input.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+  // 3. Match Degrees, Minutes, Seconds format: 30°04'08.0"N,31°29'59.9"E
+  const dmsMatch = input.match(/(\d+)°(\d+)'([\d.]+)"([NS])[\s,]+(\d+)°(\d+)'([\d.]+)"([EW])/i);
 
   if (rawCoordMatch) {
     lat = parseFloat(rawCoordMatch[1]);
@@ -315,8 +322,15 @@ async function handleAdminPlant() {
   } else if (urlCoordMatch) {
     lat = parseFloat(urlCoordMatch[1]);
     lng = parseFloat(urlCoordMatch[2]);
+  } else if (dmsMatch) {
+    // Convert DMS to Decimal
+    lat = parseInt(dmsMatch[1]) + parseInt(dmsMatch[2])/60 + parseFloat(dmsMatch[3])/3600;
+    if (dmsMatch[4].toUpperCase() === 'S') lat = -lat;
+    
+    lng = parseInt(dmsMatch[5]) + parseInt(dmsMatch[6])/60 + parseFloat(dmsMatch[7])/3600;
+    if (dmsMatch[8].toUpperCase() === 'W') lng = -lng;
   } else {
-    adminPlantError.innerText = "Could not find coordinates. Please paste a full Google Maps link containing '@lat,lng' OR paste raw coordinates like '30.044, 31.235'.";
+    adminPlantError.innerText = "Could not parse coordinates. Ensure it is a Decimal (30.044, 31.235) or DMS format.";
     adminPlantError.style.display = 'block';
     return;
   }
