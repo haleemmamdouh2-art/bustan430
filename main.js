@@ -1,4 +1,4 @@
-import { supabase } from './supabase.js';
+// No imports needed, we use the global window object.
 
 // Configuration
 // If the user hasn't provided a countdown date yet, we use a placeholder of 60 days from now.
@@ -118,7 +118,7 @@ function initMap() {
 async function loadMemories() {
   // Try loading from Supabase
   try {
-    const { data, error } = await supabase.from('memories').select('*');
+    const { data, error } = await window.supabaseDb.from('memories').select('*');
     if (error) throw error;
     
     if (data && data.length > 0) {
@@ -234,13 +234,13 @@ async function handleSaveMemory() {
     // Upload image to Supabase if provided
     if (file) {
       const fileName = \`\${Date.now()}-\${file.name}\`;
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await window.supabaseDb.storage
         .from('memories')
         .upload(fileName, file);
         
       if (uploadError) throw uploadError;
       
-      const { data: publicUrlData } = supabase.storage
+      const { data: publicUrlData } = window.supabaseDb.storage
         .from('memories')
         .getPublicUrl(fileName);
         
@@ -257,7 +257,7 @@ async function handleSaveMemory() {
     };
 
     // Save to DB
-    const { error: dbError } = await supabase.from('memories').insert([newMemory]);
+    const { error: dbError } = await window.supabaseDb.from('memories').insert([newMemory]);
     if (dbError) throw dbError;
 
     // Add to map visually
