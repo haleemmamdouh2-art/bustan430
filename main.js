@@ -217,11 +217,17 @@ function openAlbumSheet(location) {
     albumFeed.innerHTML = `<p style="text-align:center; color: #888; margin-top:2rem;">A seed was planted here. Waiting to bloom.</p>`;
   }
   
+  albumSheet.classList.remove('hidden');
+  // force reflow
+  void albumSheet.offsetWidth;
   albumSheet.classList.add('open');
 }
 
 function closeSheet() {
   albumSheet.classList.remove('open');
+  setTimeout(() => {
+    albumSheet.classList.add('hidden');
+  }, 400); // Wait for CSS transition
   activeLocationId = null;
 }
 
