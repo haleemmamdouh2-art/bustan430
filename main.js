@@ -191,17 +191,17 @@ function openAlbumSheet(location) {
       if (mem.font === 'Caveat') fontClass = 'font-caveat';
       if (mem.font === 'Dancing Script') fontClass = 'font-dancing';
       
-      card.innerHTML = \`
-        <img src="\${mem.photo}" alt="Memory" loading="lazy" />
+      card.innerHTML = `
+        <img src="${mem.photo}" alt="Memory" loading="lazy" />
         <div class="memory-header">
-          <div class="memory-date \${fontClass}">\${new Date(mem.date).toLocaleDateString()}</div>
+          <div class="memory-date ${fontClass}">${new Date(mem.date).toLocaleDateString()}</div>
         </div>
-        \${mem.note ? \`<div class="memory-note \${fontClass}">\${mem.note}</div>\` : ''}
-      \`;
+        ${mem.note ? `<div class="memory-note ${fontClass}">${mem.note}</div>` : ''}
+      `;
       albumFeed.appendChild(card);
     });
   } else {
-    albumFeed.innerHTML = \`<p style="text-align:center; color: #888; margin-top:2rem;">A seed was planted here. Waiting to bloom.</p>\`;
+    albumFeed.innerHTML = `<p style="text-align:center; color: #888; margin-top:2rem;">A seed was planted here. Waiting to bloom.</p>`;
   }
   
   albumSheet.classList.add('open');
@@ -252,7 +252,7 @@ async function saveMemory() {
   saveMemoryBtn.disabled = true;
 
   try {
-    const fileName = \`\${Date.now()}-\${file.name}\`;
+    const fileName = `${Date.now()}-${file.name}`;
     const { error: uploadError } = await window.supabaseDb.storage.from('memories').upload(fileName, file);
     if (uploadError) throw uploadError;
     
@@ -340,11 +340,11 @@ function createRealisticPetals() {
   for (let i = 0; i < 15; i++) {
     const petal = document.createElement('div');
     petal.classList.add('petal');
-    petal.style.width = \`\${Math.random() * 12 + 8}px\`;
+    petal.style.width = `${Math.random() * 12 + 8}px`;
     petal.style.height = petal.style.width;
-    petal.style.left = \`\${Math.random() * 100}vw\`;
-    petal.style.animationDuration = \`\${Math.random() * 10 + 15}s\`; // Slower fall (15-25s)
-    petal.style.animationDelay = \`\${Math.random() * 15}s\`;
+    petal.style.left = `${Math.random() * 100}vw`;
+    petal.style.animationDuration = `${Math.random() * 10 + 15}s`; // Slower fall (15-25s)
+    petal.style.animationDelay = `${Math.random() * 15}s`;
     container.appendChild(petal);
   }
 }
