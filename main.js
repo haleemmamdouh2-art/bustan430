@@ -29,23 +29,12 @@ const TIME_PALETTES = {
 };
 
 function getTimePalette() {
-  const h = new Date().getHours();
-  if (h >= 22 || h < 5)  return TIME_PALETTES.night;
-  if (h >= 5  && h < 7)  return TIME_PALETTES.dawn;
-  if (h >= 7  && h < 10) return TIME_PALETTES.morning;
-  if (h >= 10 && h < 16) return TIME_PALETTES.noon;
-  if (h >= 16 && h < 19) return TIME_PALETTES.evening;
-  return TIME_PALETTES.dusk;
+  // Always sunny daytime
+  return TIME_PALETTES.noon;
 }
 
 function getTimeLabel() {
-  const h = new Date().getHours();
-  if (h >= 22 || h < 5)  return ['🌙', 'Night'];
-  if (h >= 5  && h < 7)  return ['🌅', 'Dawn'];
-  if (h >= 7  && h < 10) return ['🌤️', 'Morning'];
-  if (h >= 10 && h < 16) return ['☀️', 'Daytime'];
-  if (h >= 16 && h < 19) return ['🌇', 'Evening'];
-  return ['🌆', 'Dusk'];
+  return ['☀️', 'Daytime'];
 }
 
 // =============================================
@@ -55,8 +44,7 @@ function initScene() {
   clock = new THREE.Clock();
   const canvas = document.getElementById('garden-canvas');
   const palette = getTimePalette();
-  const h = new Date().getHours();
-  const isNight = h >= 20 || h < 7;
+  const isNight = false; // always day
 
   // Renderer — cinematic quality
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
@@ -334,7 +322,7 @@ function createParticles() {
   const geo = new THREE.BufferGeometry();
   const count = 50;  // way fewer
   const pos = new Float32Array(count * 3);
-  const isNight = new Date().getHours() >= 20 || new Date().getHours() < 7;
+  const isNight = false;
   for (let i = 0; i < count; i++) {
     pos[i*3]   = (Math.random()-0.5) * 28;
     pos[i*3+1] = 0.1 + Math.random() * 1.8; // stay close to ground
