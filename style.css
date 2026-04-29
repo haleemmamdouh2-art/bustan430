@@ -219,13 +219,78 @@ h1, h2, h3, h4 {
   overflow: hidden;
   border-radius: 4px;
   box-shadow: 0 30px 60px rgba(0,0,0,0.1);
+  aspect-ratio: 1 / 1; /* Square Instagram look */
+}
+
+.card-carousel {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  width: 100%;
+  height: 100%;
+  scrollbar-width: none;
+}
+.card-carousel::-webkit-scrollbar { display: none; }
+
+.carousel-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  height: 100%;
+  scroll-snap-align: start;
 }
 
 .card-img {
   width: 100%;
+  height: 100%;
+  object-fit: cover;
   display: block;
   transition: transform 1.5s var(--transition);
 }
+
+.carousel-dots {
+  position: absolute;
+  bottom: 15px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 10;
+  pointer-events: none;
+}
+.dot {
+  width: 6px;
+  height: 6px;
+  background: rgba(255,255,255,0.4);
+  border-radius: 50%;
+  transition: 0.3s;
+}
+.dot.active {
+  background: white;
+  transform: scale(1.3);
+}
+
+.carousel-btn {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(0,0,0,0.3);
+  border: none;
+  color: white;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  z-index: 15;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  opacity: 0;
+  transition: 0.3s;
+}
+.card-image-wrap:hover .carousel-btn { opacity: 1; }
+.carousel-btn:hover { background: var(--accent); }
+.carousel-btn.prev { left: 10px; }
+.carousel-btn.next { right: 10px; }
 
 .memory-card:hover .card-img {
   transform: scale(1.05);
