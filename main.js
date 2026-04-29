@@ -55,17 +55,29 @@ function initUI() {
     if (e.key === 'Enter') loginAdmin();
   });
 
-  // Photo upload preview
+  // Photo upload preview (Multiple)
   const photoInput = document.getElementById('photo-input');
   const photoDrop  = document.getElementById('photo-drop-zone');
+  const previewContainer = document.getElementById('photo-previews-container');
+
   photoDrop.addEventListener('click', () => photoInput.click());
   photoInput.addEventListener('change', () => {
-    const file = photoInput.files[0];
-    if (file) {
-      const url = URL.createObjectURL(file);
-      document.getElementById('photo-preview').src = url;
-      document.getElementById('photo-preview').classList.remove('hidden');
+    const files = Array.from(photoInput.files);
+    previewContainer.innerHTML = '';
+    if (files.length > 0) {
       document.getElementById('photo-placeholder').classList.add('hidden');
+      files.forEach(file => {
+        const url = URL.createObjectURL(file);
+        const img = document.createElement('img');
+        img.src = url;
+        img.style.width = '60px';
+        img.style.height = '60px';
+        img.style.objectFit = 'cover';
+        img.style.borderRadius = '4px';
+        previewContainer.appendChild(img);
+      });
+    } else {
+      document.getElementById('photo-placeholder').classList.remove('hidden');
     }
   });
 
@@ -391,15 +403,36 @@ function renderTimeline() {
   const container = document.getElementById('timeline-container');
   container.innerHTML = '';
 
-  // Only render entries that HAVE a photo for the timeline
-  const timelineMemories = memories.filter(m => m.photo);
+  // Filter for entries that have either the old 'photo' or the new 'photos' array
+  const timelineMemories = memories.filter(m => (m.photos && m.photos.length > 0) || m.photo);
 
   timelineMemories.forEach((m, i) => {
     const card = document.createElement('article');
     card.className = 'memory-card';
+    
+    // Use the photos array if available, otherwise fall back to the single photo
+    const displayPhotos = (m.photos && m.photos.length > 0) ? m.photos : [m.photo];
+    
+    const carouselHtml = displayPhotos.map(url => `
+      <div class="carousel-slide">
+        <img src="${url}" alt="Memory" class="card-img" loading="lazy" />
+      </div>
+    `).join('');
+
+    const dotsHtml = displayPhotos.length > 1 ? `
+      <div class="carousel-dots">
+        ${displayPhotos.map((_, idx) => `<div class="dot ${idx === 0 ? 'active' : ''}"></div>`).join('')}
+      </div>
+      <button class="carousel-btn prev" aria-label="Previous">❮</button>
+      <button class="carousel-btn next" aria-label="Next">❯</button>
+    ` : '';
+
     card.innerHTML = `
       <div class="card-image-wrap">
-        <img src="${m.photo}" alt="Memory" class="card-img" loading="lazy" />
+        <div class="card-carousel" data-id="${m.id}">
+          ${carouselHtml}
+        </div>
+        ${dotsHtml}
       </div>
       <div class="card-content">
         <div class="card-meta">
@@ -422,6 +455,32 @@ function renderTimeline() {
       toggleLike(m.id, this);
     });
 
+    // Handle Carousel Dots and Buttons
+    const carousel = card.querySelector('.card-carousel');
+    const dots = card.querySelectorAll('.dot');
+    const nextBtn = card.querySelector('.carousel-btn.next');
+    const prevBtn = card.querySelector('.carousel-btn.prev');
+
+    if (carousel && dots.length > 0) {
+      carousel.addEventListener('scroll', () => {
+        const index = Math.round(carousel.scrollLeft / carousel.offsetWidth);
+        dots.forEach((dot, idx) => {
+          dot.classList.toggle('active', idx === index);
+        });
+      });
+      
+      if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+          carousel.scrollBy({ left: carousel.offsetWidth, behavior: 'smooth' });
+        });
+      }
+      if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+          carousel.scrollBy({ left: -carousel.offsetWidth, behavior: 'smooth' });
+        });
+      }
+    }
+
     // Inline editing for timeline
     if (isAdminUnlocked) {
       const titleEl = card.querySelector('.card-title');
@@ -430,8 +489,6 @@ function renderTimeline() {
       [titleEl, noteEl].forEach(el => {
         el.contentEditable = "true";
         el.addEventListener('blur', async () => {
-          // For now we save both to 'note' or if we had a 'title' field... 
-          // Since we only have 'note', let's just save the note field.
           const field = el.dataset.field;
           const newValue = el.textContent;
           try {
@@ -447,29 +504,11 @@ function renderTimeline() {
     }
 
     container.appendChild(card);
-
-    // Animation for this card
-    gsap.from(card.querySelector('.card-image-wrap'), {
-      scrollTrigger: {
-        trigger: card,
-        start: 'top 80%',
-      },
-      scale: 0.9,
-      opacity: 0,
-      duration: 1.5,
-      ease: 'power2.out'
-    });
     
-    gsap.from(card.querySelector('.card-content'), {
-      scrollTrigger: {
-        trigger: card,
-        start: 'top 80%',
-      },
-      x: i % 2 === 0 ? 50 : -50,
-      opacity: 0,
-      duration: 1.2,
-      ease: 'power2.out',
-      delay: 0.3
+    // Animation
+    gsap.from(card.querySelector('.card-image-wrap'), {
+      scrollTrigger: { trigger: card, start: 'top 80%' },
+      scale: 0.95, opacity: 0, duration: 1.2, ease: 'power2.out'
     });
   });
 }
@@ -554,37 +593,41 @@ async function loginAdmin() {
 }
 
 async function plantMemory() {
-  const file = document.getElementById('photo-input').files[0];
+  const files = Array.from(document.getElementById('photo-input').files);
   const note = document.getElementById('plant-note').value;
   const date = document.getElementById('plant-date').value || new Date().toISOString().split('T')[0];
   const loc  = document.getElementById('plant-location').value;
   const flower = document.getElementById('plant-flower').value;
-  
+  const title = note ? note.split('\n')[0].slice(0, 50) : 'A Beautiful Moment';
+
   const btn = document.getElementById('plant-btn');
   const btnTxt = document.getElementById('plant-btn-text');
   
-  if (!note && !file) { alert('Please add a photo or a note.'); return; }
+  if (files.length === 0 && !note) { alert('Please add at least one photo or a note.'); return; }
   
   btn.disabled = true;
   btnTxt.textContent = 'Planting...';
 
   try {
-    let photoUrl = '';
-    if (file) {
+    const uploadedUrls = [];
+    
+    for (const file of files) {
       const ext = file.name.split('.').pop();
-      const fileName = `${Date.now()}.${ext}`;
+      const fileName = `${Date.now()}_${Math.random().toString(36).substr(2, 5)}.${ext}`;
       const { error: upErr } = await window.supabaseDb.storage
         .from('memories')
         .upload(fileName, file);
       if (upErr) throw upErr;
       
       const { data: urlData } = window.supabaseDb.storage.from('memories').getPublicUrl(fileName);
-      photoUrl = urlData.publicUrl;
+      uploadedUrls.push(urlData.publicUrl);
     }
 
     const { error: insErr } = await window.supabaseDb.from('memories').insert([{
-      photo: photoUrl,
+      photos: uploadedUrls,
+      photo: uploadedUrls[0] || '', // Backwards compatibility
       note,
+      title,
       date,
       location: loc,
       flower_type: flower
@@ -592,14 +635,13 @@ async function plantMemory() {
     if (insErr) throw insErr;
 
     alert('Memory planted in the journal! 🌹');
-    location.reload(); // Simplest way to refresh everything
+    location.reload();
   } catch (err) {
     console.error('plantMemory:', err);
     alert('Error planting memory: ' + err.message);
   } finally {
-    const btn = document.getElementById('save-settings-btn');
     btn.disabled = false;
-    btn.textContent = 'Update Site Content';
+    btnTxt.textContent = 'Add to Journal';
   }
 }
 
