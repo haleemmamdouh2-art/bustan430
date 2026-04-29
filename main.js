@@ -18,12 +18,12 @@ const FLOWER_TYPES = ['rose', 'tulip', 'sunflower', 'lily', 'daisy'];
 
 // Time of day palette
 const TIME_PALETTES = {
-  night:   { sky: 0x050820, fog: 0x080d1a, ambient: 0x1a2040, sun: 0x2040a0, sunIntensity: 0.3, fogDensity: 0.018 },
-  dawn:    { sky: 0x1a0a2e, fog: 0x3d1c3a, ambient: 0x7a4560, sun: 0xff8844, sunIntensity: 0.8, fogDensity: 0.014 },
-  morning: { sky: 0x87ceeb, fog: 0xb0d8ef, ambient: 0xd4e8f5, sun: 0xfff5cc, sunIntensity: 1.4, fogDensity: 0.010 },
-  noon:    { sky: 0x4dc8ff, fog: 0x9be0ff, ambient: 0xe8f4ff, sun: 0xffffff, sunIntensity: 1.8, fogDensity: 0.008 },
-  evening: { sky: 0xff6633, fog: 0xff9966, ambient: 0xffb080, sun: 0xff4400, sunIntensity: 1.2, fogDensity: 0.012 },
-  dusk:    { sky: 0x1a0536, fog: 0x3d1456, ambient: 0x5a2060, sun: 0xff2288, sunIntensity: 0.6, fogDensity: 0.016 },
+  night:   { sky: 0x0a0f2e, fog: 0x0d1535, ambient: 0x4060a0, sun: 0x6080c0, sunIntensity: 0.8, fogDensity: 0.012 },
+  dawn:    { sky: 0x2a0f3e, fog: 0x4d2c4a, ambient: 0x9a6080, sun: 0xff8844, sunIntensity: 1.0, fogDensity: 0.012 },
+  morning: { sky: 0x87ceeb, fog: 0xb0d8ef, ambient: 0xd4e8f5, sun: 0xfff5cc, sunIntensity: 1.5, fogDensity: 0.009 },
+  noon:    { sky: 0x4dc8ff, fog: 0x9be0ff, ambient: 0xe8f4ff, sun: 0xffffff, sunIntensity: 1.8, fogDensity: 0.007 },
+  evening: { sky: 0xff6633, fog: 0xff9966, ambient: 0xffb080, sun: 0xff4400, sunIntensity: 1.3, fogDensity: 0.010 },
+  dusk:    { sky: 0x2a0846, fog: 0x4d1e66, ambient: 0x8040a0, sun: 0xff2288, sunIntensity: 0.9, fogDensity: 0.014 },
 };
 
 function getTimePalette() {
@@ -69,28 +69,34 @@ function initScene() {
   scene.fog = new THREE.FogExp2(palette.fog, palette.fogDensity);
 
   // Camera
-  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
-  camera.position.set(0, 6, 18);
-  camera.lookAt(0, 0, 0);
+  camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 200);
+  camera.position.set(0, 4, 14);
+  camera.lookAt(0, 1, 0);
 
   // Controls
   controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
-  controls.minDistance = 5;
-  controls.maxDistance = 40;
-  controls.maxPolarAngle = Math.PI / 2.1;
-  controls.target.set(0, 0, 0);
+  controls.minDistance = 4;
+  controls.maxDistance = 30;
+  controls.minPolarAngle = 0.2;
+  controls.maxPolarAngle = Math.PI / 2.3;
+  controls.target.set(0, 1, 0);
   controls.enablePan = false;
 
   // Lighting
-  const ambientLight = new THREE.AmbientLight(palette.ambient, 0.8);
+  const ambientLight = new THREE.AmbientLight(palette.ambient, 1.2);
   ambientLight.name = 'ambient';
   scene.add(ambientLight);
 
+  // Fill light from below so ground is always visible
+  const fillLight = new THREE.HemisphereLight(palette.ambient, 0x1a3a10, 0.6);
+  fillLight.name = 'fill';
+  scene.add(fillLight);
+
   const sunLight = new THREE.DirectionalLight(palette.sun, palette.sunIntensity);
   sunLight.name = 'sun';
-  sunLight.position.set(10, 20, 10);
+  sunLight.position.set(8, 15, 8);
   sunLight.castShadow = true;
   sunLight.shadow.mapSize.set(1024, 1024);
   sunLight.shadow.camera.near = 0.5;
@@ -100,6 +106,10 @@ function initScene() {
   sunLight.shadow.camera.top = 20;
   sunLight.shadow.camera.bottom = -20;
   scene.add(sunLight);
+
+  // Night stars
+  const h = new Date().getHours();
+  if (h >= 20 || h < 7) createStars();
 
   // Ground
   createGround(palette);
@@ -116,32 +126,51 @@ function initScene() {
 }
 
 // =============================================
+// STARS (for night)
+// =============================================
+function createStars() {
+  const geo = new THREE.BufferGeometry();
+  const count = 800;
+  const pos = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(2 * Math.random() - 1);
+    const r = 80 + Math.random() * 20;
+    pos[i*3]   = r * Math.sin(phi) * Math.cos(theta);
+    pos[i*3+1] = Math.abs(r * Math.cos(phi)) + 5; // keep above horizon
+    pos[i*3+2] = r * Math.sin(phi) * Math.sin(theta);
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({ color: 0xffffff, size: 0.3, transparent: true, opacity: 0.85 });
+  scene.add(new THREE.Points(geo, mat));
+}
+
+// =============================================
 // GROUND
 // =============================================
 function createGround(palette) {
-  // Main grass plane
-  const grassGeo = new THREE.PlaneGeometry(80, 80, 60, 60);
+  // Main grass plane — bright enough even at night
+  const grassGeo = new THREE.PlaneGeometry(80, 80, 50, 50);
   const positions = grassGeo.attributes.position;
   for (let i = 0; i < positions.count; i++) {
     const x = positions.getX(i);
     const z = positions.getZ(i);
-    const y = Math.sin(x * 0.3) * 0.15 + Math.cos(z * 0.4) * 0.12 + (Math.random() - 0.5) * 0.08;
-    positions.setY(i, y);
+    positions.setY(i, Math.sin(x * 0.25) * 0.1 + Math.cos(z * 0.3) * 0.1);
   }
   grassGeo.computeVertexNormals();
 
-  const grassMat = new THREE.MeshLambertMaterial({ color: 0x2d6a2d });
+  const grassMat = new THREE.MeshLambertMaterial({ color: 0x2d7a2d, emissive: 0x0a1a05, emissiveIntensity: 0.3 });
   const ground = new THREE.Mesh(grassGeo, grassMat);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   scene.add(ground);
 
-  // Path
-  const pathGeo = new THREE.PlaneGeometry(2.5, 30);
-  const pathMat = new THREE.MeshLambertMaterial({ color: 0x8b7355 });
+  // Short stone path — flat, no height
+  const pathGeo = new THREE.PlaneGeometry(2, 14);
+  const pathMat = new THREE.MeshLambertMaterial({ color: 0x998866 });
   const path = new THREE.Mesh(pathGeo, pathMat);
   path.rotation.x = -Math.PI / 2;
-  path.position.set(0, 0.01, 5);
+  path.position.set(0, 0.01, 3); // close in front of camera only
   scene.add(path);
 
   // Rocks
