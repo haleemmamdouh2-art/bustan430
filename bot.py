@@ -28,7 +28,7 @@ logging.basicConfig(
 )
 
 # States
-PHOTO, TITLE, LOCATION, NOTE, FLOWER = range(5)
+MAIN_MENU, GET_INPUT = range(2)
 
 FLOWER_MAP = {
     'rose': '🌹 Rose',
@@ -38,98 +38,134 @@ FLOWER_MAP = {
     'daisy': '🌼 Daisy'
 }
 
+def get_draft_keyboard(data):
+    """Generates the main interactive menu for the memory draft"""
+    title = data.get('title', 'Not set')
+    loc = data.get('location', 'Not set')
+    note = data.get('note', 'Not set')
+    flower = FLOWER_MAP.get(data.get('flower_type', 'rose'), '🌹 Rose')
+    
+    keyboard = [
+        [InlineKeyboardButton(f"📝 Title: {title[:20]}...", callback_data="set_title")],
+        [InlineKeyboardButton(f"📍 Location: {loc[:20]}...", callback_data="set_loc")],
+        [InlineKeyboardButton(f"📖 Story: {note[:20]}...", callback_data="set_note")],
+        [InlineKeyboardButton(f"🌸 Flower: {flower}", callback_data="set_flower")],
+        [InlineKeyboardButton("✅ Plant Memory in Garden", callback_data="plant_now")]
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         "Welcome to Bustan's Journal Bot! 🌹\n\n"
-        "I can help you plant memories directly from Telegram.\n"
-        "Commands:\n"
-        "/add - Plant a new memory\n"
-        "/list - View recent memories\n"
-        "/cancel - Stop current action"
+        "Send me some photos to start planting a new memory.\n"
+        "I'll build a draft for you that you can edit easily with buttons!"
     )
 
-async def add_memory_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data.clear()
-    context.user_data['photos'] = []
-    await update.message.reply_text("Please send the photo(s) for this memory. When you're done, send /done.")
-    return PHOTO
-
-async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    photo_file = await update.message.photo[-1].get_file()
-    # Store file_id to download later
-    context.user_data['photos'].append(photo_file)
-    await update.message.reply_text(f"Photo added! Total: {len(context.user_data['photos'])}. Send more or /done.")
-    return PHOTO
-
-async def photo_done(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not context.user_data.get('photos'):
-        await update.message.reply_text("Please send at least one photo!")
-        return PHOTO
-    await update.message.reply_text("Got the photos! Now, what's the **Title** for this memory?")
-    return TITLE
-
-async def handle_title(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['title'] = update.message.text
-    await update.message.reply_text("Nice! Now, where was this taken? (**Location**)")
-    return LOCATION
-
-async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['location'] = update.message.text
-    await update.message.reply_text("And the **Note** or story for this memory?")
-    return NOTE
-
-async def handle_note(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data['note'] = update.message.text
+async def handle_photos_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Triggered when user sends photos without being in a 'GET_INPUT' state"""
+    if 'draft' not in context.user_data:
+        context.user_data['draft'] = {
+            'photos': [],
+            'title': 'New Memory',
+            'location': 'Cairo, Egypt',
+            'note': 'A beautiful moment captured.',
+            'flower_type': 'rose',
+            'date': datetime.now().strftime("%Y-%m-%d")
+        }
     
-    keyboard = [
-        [InlineKeyboardButton(v, callback_data=k)] for k, v in FLOWER_MAP.items()
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("Finally, choose a **Flower Tag**:", reply_markup=reply_markup)
-    return FLOWER
+    photo_file = await update.message.photo[-1].get_file()
+    context.user_data['draft']['photos'].append(photo_file)
+    
+    # Send/Update the interactive menu
+    count = len(context.user_data['draft']['photos'])
+    msg = f"📸 {count} Photo(s) received!\n\nUse the buttons below to customize your memory before planting it."
+    
+    reply_markup = get_draft_keyboard(context.user_data['draft'])
+    await update.message.reply_text(msg, reply_markup=reply_markup)
+    return MAIN_MENU
 
-async def handle_flower(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    context.user_data['flower_type'] = query.data
     
+    action = query.data
+    
+    if action == "plant_now":
+        return await plant_memory_final(query, context)
+        
+    if action == "set_flower":
+        # Show flower selection sub-menu
+        keyboard = [[InlineKeyboardButton(v, callback_data=f"flower_{k}")] for k, v in FLOWER_MAP.items()]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text("Pick a flower tag for this memory:", reply_markup=reply_markup)
+        return MAIN_MENU
+
+    if action.startswith("flower_"):
+        context.user_data['draft']['flower_type'] = action.replace("flower_", "")
+        await query.edit_message_text("Flower updated! Back to draft...", reply_markup=get_draft_keyboard(context.user_data['draft']))
+        return MAIN_MENU
+
+    # For text inputs
+    prompt_map = {
+        "set_title": "Send me the **Title** for this memory:",
+        "set_loc": "Send me the **Location** (e.g. Cairo, Egypt):",
+        "set_note": "Send me the **Story/Note** for this memory:"
+    }
+    
+    context.user_data['current_field'] = action
+    await query.edit_message_text(prompt_map[action], parse_mode='Markdown')
+    return GET_INPUT
+
+async def handle_input_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    field = context.user_data.get('current_field')
+    text = update.message.text
+    
+    field_map = {
+        "set_title": "title",
+        "set_loc": "location",
+        "set_note": "note"
+    }
+    
+    context.user_data['draft'][field_map[field]] = text
+    
+    reply_markup = get_draft_keyboard(context.user_data['draft'])
+    await update.message.reply_text("Field updated! 📝", reply_markup=reply_markup)
+    return MAIN_MENU
+
+async def plant_memory_final(query, context):
+    draft = context.user_data['draft']
     await query.edit_message_text("Planting your memory in the garden... ⏳")
     
     try:
-        # Upload photos to Supabase Storage
         uploaded_urls = []
-        for i, photo_file in enumerate(context.user_data['photos']):
-            # Download file from Telegram
+        for i, photo_file in enumerate(draft['photos']):
             file_bytes = await photo_file.download_as_bytearray()
-            
             ext = photo_file.file_path.split('.')[-1]
             filename = f"tg_{int(datetime.now().timestamp())}_{i}.{ext}"
             
-            # Upload to 'memories' bucket
-            res = supabase.storage.from_("memories").upload(
+            supabase.storage.from_("memories").upload(
                 path=filename,
                 file=bytes(file_bytes),
                 file_options={"content-type": f"image/{ext}"}
             )
             
-            # Get public URL
             url_res = supabase.storage.from_("memories").get_public_url(filename)
             uploaded_urls.append(url_res)
 
-        # Insert into Database
         memory_data = {
             "photos": uploaded_urls,
             "photo": uploaded_urls[0] if uploaded_urls else "",
-            "title": context.user_data['title'],
-            "location": context.user_data['location'],
-            "note": context.user_data['note'],
-            "flower_type": context.user_data['flower_type'],
-            "date": datetime.now().strftime("%Y-%m-%d")
+            "title": draft['title'],
+            "location": draft['location'],
+            "note": draft['note'],
+            "flower_type": draft['flower_type'],
+            "date": draft['date']
         }
         
         supabase.table("memories").insert(memory_data).execute()
         
         await query.message.reply_text("Memory successfully planted! 🌹✨ Check the site!")
+        context.user_data.clear()
         return ConversationHandler.END
 
     except Exception as e:
@@ -138,46 +174,24 @@ async def handle_flower(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Action cancelled.")
+    context.user_data.clear()
+    await update.message.reply_text("Action cancelled. Send photos to start again.")
     return ConversationHandler.END
-
-async def list_memories(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    try:
-        res = supabase.table("memories").select("*").order("date", desc=True).limit(5).execute()
-        mems = res.data
-        
-        if not mems:
-            await update.message.reply_text("The garden is currently empty.")
-            return
-            
-        text = "🌸 **Recent Memories:**\n\n"
-        for m in mems:
-            text += f"📅 {m['date']} - **{m['title']}**\n📍 {m['location']}\n\n"
-        
-        await update.message.reply_text(text, parse_mode='Markdown')
-    except Exception as e:
-        await update.message.reply_text(f"Error fetching memories: {e}")
 
 if __name__ == '__main__':
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
     
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('add', add_memory_start)],
+        entry_points=[MessageHandler(filters.PHOTO, handle_photos_start)],
         states={
-            PHOTO: [
-                MessageHandler(filters.PHOTO, handle_photo),
-                CommandHandler('done', photo_done)
-            ],
-            TITLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_title)],
-            LOCATION: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_location)],
-            NOTE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_note)],
-            FLOWER: [CallbackQueryHandler(handle_flower)],
+            MAIN_MENU: [CallbackQueryHandler(menu_callback)],
+            GET_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_input_text)],
         },
         fallbacks=[CommandHandler('cancel', cancel)],
+        allow_reentry=True
     )
     
     app.add_handler(CommandHandler('start', start))
-    app.add_handler(CommandHandler('list', list_memories))
     app.add_handler(conv_handler)
     
     print("Bot is blooming...")
