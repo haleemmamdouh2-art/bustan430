@@ -114,8 +114,10 @@ async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         await update.message.reply_text("🌿 **Garden Management**\nSelect a memory to edit or delete:", reply_markup=reply_markup, parse_mode='Markdown')
+        return MAIN_MENU
     except Exception as e:
         await update.message.reply_text(f"Error: {e}")
+        return ConversationHandler.END
 
 # =============================================
 # CONVERSATION & CALLBACKS
