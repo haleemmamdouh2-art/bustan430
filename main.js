@@ -385,7 +385,7 @@ async function loadMemories() {
     const { data, error } = await window.supabaseDb
       .from('memories')
       .select('*')
-      .order('date', { ascending: false });
+      .order('date', { ascending: true });
 
     if (error) throw error;
     memories = data || [];
@@ -505,10 +505,10 @@ function renderTimeline() {
 
     container.appendChild(card);
     
-    // Animation
-    gsap.from(card.querySelector('.card-image-wrap'), {
-      scrollTrigger: { trigger: card, start: 'top 80%' },
-      scale: 0.95, opacity: 0, duration: 1.2, ease: 'power2.out'
+    // Animation - Subtle and stable
+    gsap.from(card, {
+      scrollTrigger: { trigger: card, start: 'top 90%' },
+      opacity: 0, y: 20, duration: 0.8, ease: 'power2.out'
     });
   });
 }
