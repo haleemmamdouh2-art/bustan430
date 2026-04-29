@@ -318,7 +318,6 @@ if __name__ == '__main__':
         allow_reentry=True
     )
     app.add_handler(CommandHandler('start', start))
-    app.add_handler(CommandHandler('admin', admin_menu))
     app.add_handler(conv_handler)
     print("Bot is blooming...")
     app.run_polling()
