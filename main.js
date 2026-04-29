@@ -61,60 +61,66 @@ function initScene() {
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
+  renderer.toneMappingExposure = 1.2;
 
   // Scene
   scene = new THREE.Scene();
   scene.background = new THREE.Color(palette.sky);
   scene.fog = new THREE.FogExp2(palette.fog, palette.fogDensity);
 
-  // Camera
-  camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 200);
-  camera.position.set(0, 4, 14);
-  camera.lookAt(0, 1, 0);
+  // Gradient sky sphere
+  createSkySphere(palette);
+
+  // Camera — low, cinematic
+  camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 300);
+  camera.position.set(0, 3.5, 12);
+  camera.lookAt(0, 1.5, 0);
 
   // Controls
   controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
-  controls.minDistance = 4;
-  controls.maxDistance = 30;
-  controls.minPolarAngle = 0.2;
-  controls.maxPolarAngle = Math.PI / 2.3;
-  controls.target.set(0, 1, 0);
+  controls.dampingFactor = 0.07;
+  controls.minDistance = 3;
+  controls.maxDistance = 28;
+  controls.minPolarAngle = 0.15;
+  controls.maxPolarAngle = Math.PI / 2.2;
+  controls.target.set(0, 1.5, 0);
   controls.enablePan = false;
 
-  // Lighting
-  const ambientLight = new THREE.AmbientLight(palette.ambient, 1.2);
-  ambientLight.name = 'ambient';
-  scene.add(ambientLight);
+  // Hemisphere light — sky/ground gradient light
+  const hemi = new THREE.HemisphereLight(palette.ambient, 0x1a4a10, 1.0);
+  scene.add(hemi);
 
-  // Fill light from below so ground is always visible
-  const fillLight = new THREE.HemisphereLight(palette.ambient, 0x1a3a10, 0.6);
-  fillLight.name = 'fill';
-  scene.add(fillLight);
+  // Ambient
+  const ambient = new THREE.AmbientLight(palette.ambient, 0.6);
+  scene.add(ambient);
 
+  // Sun / Moon directional light
   const sunLight = new THREE.DirectionalLight(palette.sun, palette.sunIntensity);
   sunLight.name = 'sun';
-  sunLight.position.set(8, 15, 8);
+  sunLight.position.set(12, 18, 8);
   sunLight.castShadow = true;
-  sunLight.shadow.mapSize.set(1024, 1024);
+  sunLight.shadow.mapSize.set(2048, 2048);
   sunLight.shadow.camera.near = 0.5;
-  sunLight.shadow.camera.far = 80;
+  sunLight.shadow.camera.far = 60;
   sunLight.shadow.camera.left = -20;
   sunLight.shadow.camera.right = 20;
   sunLight.shadow.camera.top = 20;
   sunLight.shadow.camera.bottom = -20;
   scene.add(sunLight);
 
+  // Warm pink rim light for drama
+  const rimLight = new THREE.PointLight(0xff88aa, 1.5, 30);
+  rimLight.position.set(-8, 6, -8);
+  scene.add(rimLight);
+
   // Night stars
   const h = new Date().getHours();
   if (h >= 20 || h < 7) createStars();
 
-  // Ground
+  // World
   createGround(palette);
-
-  // Ambient particles
+  createTrees();
   createParticles(palette);
 
   // Resize
@@ -123,6 +129,27 @@ function initScene() {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
   });
+}
+
+// =============================================
+// SKY SPHERE
+// =============================================
+function createSkySphere(palette) {
+  const skyGeo = new THREE.SphereGeometry(140, 24, 12);
+  // Vertex colors for gradient
+  const colors = [];
+  const top = new THREE.Color(palette.sky);
+  const horizon = new THREE.Color(palette.fog);
+  const pos = skyGeo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i);
+    const t = Math.max(0, Math.min(1, (y + 80) / 160));
+    const c = horizon.clone().lerp(top, t);
+    colors.push(c.r, c.g, c.b);
+  }
+  skyGeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  const skyMat = new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide });
+  scene.add(new THREE.Mesh(skyGeo, skyMat));
 }
 
 // =============================================
@@ -148,62 +175,93 @@ function createStars() {
 // =============================================
 // GROUND
 // =============================================
-function createGround(palette) {
-  // Main grass plane — bright enough even at night
-  const grassGeo = new THREE.PlaneGeometry(80, 80, 50, 50);
+function createGround() {
+  // Rich green grass plane
+  const grassGeo = new THREE.PlaneGeometry(100, 100, 60, 60);
   const positions = grassGeo.attributes.position;
   for (let i = 0; i < positions.count; i++) {
     const x = positions.getX(i);
     const z = positions.getZ(i);
-    positions.setY(i, Math.sin(x * 0.25) * 0.1 + Math.cos(z * 0.3) * 0.1);
+    positions.setY(i, Math.sin(x * 0.22) * 0.12 + Math.cos(z * 0.28) * 0.1);
   }
   grassGeo.computeVertexNormals();
-
-  const grassMat = new THREE.MeshLambertMaterial({ color: 0x2d7a2d, emissive: 0x0a1a05, emissiveIntensity: 0.3 });
+  const grassMat = new THREE.MeshLambertMaterial({ color: 0x3a8c3a, emissive: 0x0d220d, emissiveIntensity: 0.4 });
   const ground = new THREE.Mesh(grassGeo, grassMat);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   scene.add(ground);
 
-  // Short stone path — flat, no height
-  const pathGeo = new THREE.PlaneGeometry(2, 14);
-  const pathMat = new THREE.MeshLambertMaterial({ color: 0x998866 });
+  // Stone path — short and in front only
+  const pathGeo = new THREE.PlaneGeometry(1.8, 10);
+  const pathMat = new THREE.MeshLambertMaterial({ color: 0xb0997a });
   const path = new THREE.Mesh(pathGeo, pathMat);
   path.rotation.x = -Math.PI / 2;
-  path.position.set(0, 0.01, 3); // close in front of camera only
+  path.position.set(0, 0.01, 4);
   scene.add(path);
 
-  // Rocks
-  for (let i = 0; i < 8; i++) {
-    const r = Math.random() * 0.3 + 0.1;
-    const rGeo = new THREE.DodecahedronGeometry(r, 0);
-    const rMat = new THREE.MeshLambertMaterial({ color: 0x777777 });
-    const rock = new THREE.Mesh(rGeo, rMat);
-    rock.position.set(
-      (Math.random() - 0.5) * 18,
-      r * 0.5,
-      (Math.random() - 0.5) * 18
-    );
-    rock.rotation.set(Math.random(), Math.random(), Math.random());
-    rock.castShadow = true;
-    scene.add(rock);
+  // Small stepping stones along path
+  for (let i = 0; i < 5; i++) {
+    const stoneGeo = new THREE.CylinderGeometry(0.25, 0.28, 0.05, 8);
+    const stoneMat = new THREE.MeshLambertMaterial({ color: 0x9a8870 });
+    const stone = new THREE.Mesh(stoneGeo, stoneMat);
+    stone.position.set((Math.random()-0.5)*0.4, 0.02, -1 + i * 2);
+    stone.rotation.y = Math.random();
+    scene.add(stone);
   }
+}
+
+// =============================================
+// TREES (scene dressing)
+// =============================================
+function createTrees() {
+  const positions = [
+    [-9, 0, -5], [9, 0, -4], [-7, 0, -10], [10, 0, -9], [-12, 0, 2],
+    [11, 0, 3], [-8, 0, 8], [9, 0, 7], [0, 0, -14], [-4, 0, -12], [5, 0, -11]
+  ];
+  positions.forEach(([x, , z]) => {
+    const grp = new THREE.Group();
+    const h = 3.5 + Math.random() * 2.5;
+    // Trunk
+    const trunkGeo = new THREE.CylinderGeometry(0.15, 0.25, h * 0.4, 7);
+    const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5c3d1e });
+    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+    trunk.position.y = h * 0.2;
+    trunk.castShadow = true;
+    grp.add(trunk);
+    // Foliage — layered cones
+    const leafColors = [0x2d6b2d, 0x3a8a3a, 0x226622];
+    for (let j = 0; j < 3; j++) {
+      const coneGeo = new THREE.ConeGeometry(1.2 - j * 0.25, h * 0.38, 8);
+      const coneMat = new THREE.MeshLambertMaterial({
+        color: leafColors[j % 3],
+        emissive: 0x0a1a0a, emissiveIntensity: 0.3
+      });
+      const cone = new THREE.Mesh(coneGeo, coneMat);
+      cone.position.y = h * 0.4 + j * (h * 0.22);
+      cone.castShadow = true;
+      grp.add(cone);
+    }
+    grp.position.set(x, 0, z);
+    grp.scale.setScalar(0.9 + Math.random() * 0.3);
+    grp.rotation.y = Math.random() * Math.PI;
+    scene.add(grp);
+  });
 }
 
 // =============================================
 // AMBIENT PARTICLES
 // =============================================
-function createParticles(palette) {
+function createParticles() {
   const pGeo = new THREE.BufferGeometry();
-  const count = 200;
+  const count = 150;
   const pos = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
-    pos[i*3]   = (Math.random() - 0.5) * 40;
-    pos[i*3+1] = Math.random() * 10;
-    pos[i*3+2] = (Math.random() - 0.5) * 40;
+    pos[i*3]   = (Math.random() - 0.5) * 30;
+    pos[i*3+1] = 0.5 + Math.random() * 6;
+    pos[i*3+2] = (Math.random() - 0.5) * 30;
   }
   pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const pMat = new THREE.PointsMaterial({ color: 0xffd700, size: 0.06, transparent: true, opacity: 0.55 });
+  const pMat = new THREE.PointsMaterial({ color: 0xffe080, size: 0.08, transparent: true, opacity: 0.7 });
   const points = new THREE.Points(pGeo, pMat);
   points.name = 'particles';
   scene.add(points);
