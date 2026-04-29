@@ -163,6 +163,14 @@ function applySettings() {
   if (siteSettings.music_label) document.getElementById('music-label').textContent = siteSettings.music_label;
   if (siteSettings.pacer_label) document.getElementById('pacer-label').textContent = siteSettings.pacer_label;
 
+  // Apply YouTube Music
+  if (siteSettings.youtube_link) {
+    const videoId = extractYouTubeId(siteSettings.youtube_link);
+    if (videoId) {
+      document.getElementById('bg-music-player').src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=0&loop=1&playlist=${videoId}&enablejsapi=1&mute=0`;
+    }
+  }
+
   // Apply Hero Position
   const x = siteSettings.hero_pos_x || 0;
   const y = siteSettings.hero_pos_y || 0;
@@ -173,6 +181,7 @@ function applySettings() {
   document.getElementById('edit-hero-english').value = siteSettings.hero_english || '';
   document.getElementById('edit-pacer-title').value = siteSettings.pacer_title || '';
   document.getElementById('edit-pacer-text').value = siteSettings.pacer_text || '';
+  document.getElementById('edit-youtube-link').value = siteSettings.youtube_link || '';
   
   if (isAdminUnlocked) enableInlineEditing();
 }
@@ -194,6 +203,7 @@ async function saveSettings() {
     { key: 'counter_eternal_label', value: document.getElementById('counter-eternal-label').textContent },
     { key: 'music_label', value: document.getElementById('music-label').textContent },
     { key: 'pacer_label', value: document.getElementById('pacer-label').textContent },
+    { key: 'youtube_link', value: document.getElementById('edit-youtube-link').value },
     { key: 'hero_pos_x', value: x.toString() },
     { key: 'hero_pos_y', value: y.toString() }
   ];
@@ -207,6 +217,17 @@ async function saveSettings() {
   try {
     const { error } = await window.supabaseDb.from('site_settings').upsert(settings);
     if (error) throw error;
+    
+    // Immediate feedback if it was manual click
+    const btn = document.getElementById('save-settings-btn');
+    if (btn) {
+      btn.textContent = 'Updated Successfully! ✅';
+      setTimeout(() => {
+        btn.textContent = 'Update Site Content';
+        // Reload to apply YouTube change properly
+        if (settings.find(s => s.key === 'youtube_link')) applySettings();
+      }, 2000);
+    }
   } catch (err) {
     console.error('Error auto-saving settings:', err);
   }
@@ -386,7 +407,7 @@ function renderTimeline() {
           <span class="card-date">${formatDate(m.date)}</span>
           ${m.location ? `<span class="card-location">📍 ${m.location}</span>` : ''}
         </div>
-        <h3 class="card-title" data-id="${m.id}" data-field="title">${m.note ? m.note.split('\n')[0].slice(0, 50) : 'A Beautiful Moment'}</h3>
+        <h3 class="card-title" data-id="${m.id}" data-field="title">${m.title || (m.note ? m.note.split('\n')[0] : 'A Beautiful Moment')}</h3>
         <p class="card-note" data-id="${m.id}" data-field="note">${m.note || ''}</p>
         <div class="card-actions">
           <button class="like-btn ${m.is_favorite ? 'active' : ''}" data-id="${m.id}">
@@ -576,9 +597,16 @@ async function plantMemory() {
     console.error('plantMemory:', err);
     alert('Error planting memory: ' + err.message);
   } finally {
+    const btn = document.getElementById('save-settings-btn');
     btn.disabled = false;
-    btnTxt.textContent = 'Add to Journal';
+    btn.textContent = 'Update Site Content';
   }
+}
+
+function extractYouTubeId(url) {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length == 11) ? match[2] : null;
 }
 
 function renderAdminMemoryList() {
@@ -591,30 +619,56 @@ function renderAdminMemoryList() {
     row.style.alignItems = 'stretch';
     row.style.gap = '10px';
     row.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span style="font-weight:600;">${m.date}</span>
-        <div style="display:flex; gap:10px;">
-          <button class="save-mem-btn" data-id="${m.id}" style="color:var(--accent); background:none; border:none; cursor:pointer;">Save</button>
-          <button class="del-btn" onclick="deleteMemory('${m.id}')">Delete</button>
+      <div style="background:rgba(255,255,255,0.05); padding:1rem; border-radius:8px; border:1px solid rgba(255,255,255,0.1);">
+        <div style="display:flex; gap:15px; margin-bottom:10px;">
+          <img src="${m.photo || ''}" style="width:60px; height:60px; object-fit:cover; border-radius:4px; border:1px solid var(--accent);" />
+          <div style="flex:1;">
+            <input type="text" class="edit-mem-title" value="${m.title || ''}" placeholder="Memory Title" style="width:100%; background:none; border:none; border-bottom:1px solid rgba(255,255,255,0.2); color:white; margin-bottom:5px;" />
+            <div style="display:flex; gap:5px;">
+              <input type="text" class="edit-mem-loc" value="${m.location || ''}" placeholder="Location" style="flex:1; font-size:0.7rem; background:none; border:none; color:var(--text-light);" />
+              <input type="date" class="edit-mem-date" value="${m.date}" style="font-size:0.7rem; background:none; border:none; color:var(--text-light);" />
+            </div>
+          </div>
+        </div>
+        
+        <textarea class="edit-mem-note" style="width:100%; height:60px; background:rgba(0,0,0,0.2); border:1px solid rgba(255,255,255,0.1); color:white; padding:8px; font-size:0.8rem; border-radius:4px; resize:none; margin-bottom:10px;">${m.note || ''}</textarea>
+        
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <select class="edit-mem-flower" style="background:none; border:none; color:var(--gold); font-size:0.8rem; cursor:pointer;">
+            <option value="rose" ${m.flower_type === 'rose' ? 'selected' : ''}>🌹 Rose</option>
+            <option value="tulip" ${m.flower_type === 'tulip' ? 'selected' : ''}>🌷 Tulip</option>
+            <option value="sunflower" ${m.flower_type === 'sunflower' ? 'selected' : ''}>🌻 Sunflower</option>
+            <option value="lily" ${m.flower_type === 'lily' ? 'selected' : ''}>🪷 Lily</option>
+            <option value="daisy" ${m.flower_type === 'daisy' ? 'selected' : ''}>🌼 Daisy</option>
+          </select>
+          <div style="display:flex; gap:10px;">
+            <button class="save-mem-btn" style="background:var(--accent); color:white; border:none; padding:4px 12px; border-radius:4px; font-size:0.7rem; cursor:pointer; font-weight:600;">Save Changes</button>
+            <button class="del-btn" onclick="deleteMemory('${m.id}')" style="background:rgba(255,0,0,0.2); color:#ff4d4d; border:none; padding:4px 12px; border-radius:4px; font-size:0.7rem; cursor:pointer;">Delete</button>
+          </div>
         </div>
       </div>
-      <textarea class="edit-mem-note" style="background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); color:white; padding:5px; font-size:0.8rem;">${m.note || ''}</textarea>
     `;
 
     const saveBtn = row.querySelector('.save-mem-btn');
-    const textarea = row.querySelector('.edit-mem-note');
     
     saveBtn.addEventListener('click', async () => {
-      const newNote = textarea.value;
-      saveBtn.textContent = '...';
+      const updates = {
+        title: row.querySelector('.edit-mem-title').value,
+        location: row.querySelector('.edit-mem-loc').value,
+        date: row.querySelector('.edit-mem-date').value,
+        note: row.querySelector('.edit-mem-note').value,
+        flower_type: row.querySelector('.edit-mem-flower').value
+      };
+
+      saveBtn.textContent = 'Saving...';
       try {
-        const { error } = await window.supabaseDb.from('memories').update({ note: newNote }).eq('id', m.id);
+        const { error } = await window.supabaseDb.from('memories').update(updates).eq('id', m.id);
         if (error) throw error;
-        saveBtn.textContent = '✅';
-        setTimeout(() => saveBtn.textContent = 'Save', 2000);
+        saveBtn.textContent = 'Saved! ✅';
+        setTimeout(() => saveBtn.textContent = 'Save Changes', 2000);
       } catch (err) {
         alert('Error: ' + err.message);
-        saveBtn.textContent = 'Save';
+        saveBtn.textContent = 'Save Changes';
       }
     });
 
@@ -642,21 +696,23 @@ function formatDate(dateStr) {
 }
 
 function toggleMusic() {
-  const iframe = document.getElementById('yt-player');
+  const iframe = document.getElementById('bg-music-player');
   const player = document.getElementById('music-player');
   const iconPlay  = document.getElementById('music-icon-play');
   const iconPause = document.getElementById('music-icon-pause');
+
+  if (!iframe) return;
 
   musicPlaying = !musicPlaying;
 
   if (musicPlaying) {
     iframe.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
-    player.classList.add('music-playing');
+    if (player) player.classList.add('music-playing');
     iconPlay.classList.add('hidden');
     iconPause.classList.remove('hidden');
   } else {
     iframe.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
-    player.classList.remove('music-playing');
+    if (player) player.classList.remove('music-playing');
     iconPlay.classList.remove('hidden');
     iconPause.classList.add('hidden');
   }
