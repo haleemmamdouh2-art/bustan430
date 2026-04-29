@@ -303,9 +303,10 @@ h1, h2, h3, h4 {
 .card-meta {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.8rem;
   margin-bottom: 1.5rem;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--accent);
@@ -337,6 +338,8 @@ h1, h2, h3, h4 {
   color: var(--text-light);
   line-height: 1.8;
   margin-bottom: 2rem;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 .card-actions {
@@ -670,16 +673,21 @@ input, textarea, select {
   
   .memory-card {
     grid-template-columns: 1fr !important;
-    gap: 30px;
+    gap: 20px;
+    margin-bottom: 80px;
   }
   
-  .card-content { text-align: left !important; }
-  .card-meta, .card-actions { justify-content: flex-start !important; }
+  .card-content { text-align: left !important; padding: 15px 5px; }
+  .card-meta, .card-actions { 
+    justify-content: flex-start !important; 
+    gap: 0.5rem;
+  }
   
-  .card-title { font-size: 1.8rem; }
+  .card-title { font-size: 1.6rem; margin-bottom: 1rem; }
+  .card-note { font-size: 1rem; line-height: 1.6; }
   
-  .note-title { font-size: 2rem; }
-  .note-text { font-size: 1.1rem; }
+  .note-title { font-size: 1.8rem; }
+  .note-text { font-size: 1.05rem; }
 
   /* Hide carousel arrows on phone - swiping is natural there */
   .carousel-btn { display: none !important; }
