@@ -29,7 +29,7 @@ logging.basicConfig(
 )
 
 # States
-MAIN_MENU, GET_INPUT, BANNER_UPLOAD, SONG_INPUT = range(4)
+MAIN_MENU, GET_INPUT, BANNER_UPLOAD, SONG_INPUT, SONG_NAME_INPUT = range(5)
 
 FLOWER_MAP = {
     'rose': '🌹 Rose',
@@ -168,10 +168,20 @@ async def handle_banner_upload(update: Update, context: ContextTypes.DEFAULT_TYP
     except Exception as e: await update.message.reply_text(f"Error: {e}"); return ConversationHandler.END
 
 async def handle_song_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    link = update.message.text; await update.message.reply_text("Updating song... ⏳")
+    context.user_data['new_song_link'] = update.message.text
+    await update.message.reply_text("Link received! Now, what should the **Song Display Name** be? (e.g. Now Playing: Lovely ♪)")
+    return SONG_NAME_INPUT
+
+async def handle_song_name_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    name = update.message.text; link = context.user_data.get('new_song_link')
+    await update.message.reply_text("Updating site music... ⏳")
     try:
-        supabase.table("site_settings").upsert([{"key": "youtube_link", "value": link}]).execute()
-        await update.message.reply_text("✅ Background song updated! Refresh the site to hear it."); return ConversationHandler.END
+        supabase.table("site_settings").upsert([
+            {"key": "youtube_link", "value": link},
+            {"key": "music_label", "value": name}
+        ]).execute()
+        await update.message.reply_text("✅ Background music and name updated! Refresh the site to see and hear it.")
+        return ConversationHandler.END
     except Exception as e: await update.message.reply_text(f"Error: {e}"); return ConversationHandler.END
 
 async def handle_input_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -213,6 +223,7 @@ if __name__ == '__main__':
             GET_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_input_text), CommandHandler('admin', admin_menu)],
             BANNER_UPLOAD: [MessageHandler(filters.PHOTO, handle_banner_upload), CommandHandler('admin', admin_menu)],
             SONG_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_song_input), CommandHandler('admin', admin_menu)],
+            SONG_NAME_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_song_name_input), CommandHandler('admin', admin_menu)],
         },
         fallbacks=[CommandHandler('cancel', cancel)]
     )
