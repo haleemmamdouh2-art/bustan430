@@ -680,4 +680,7 @@ input, textarea, select {
   
   .note-title { font-size: 2rem; }
   .note-text { font-size: 1.1rem; }
+
+  /* Hide carousel arrows on phone - swiping is natural there */
+  .carousel-btn { display: none !important; }
 }
