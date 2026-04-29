@@ -121,11 +121,11 @@
         </div>
 
         <div style="margin-bottom:2rem; padding-bottom:1.5rem; border-bottom:1px solid rgba(255,255,255,0.1);">
-          <p class="admin-label">Plant a New Memory 🌸</p>
-          <div class="admin-upload-zone" id="photo-drop-zone" style="height:120px;">
-            <input type="file" id="photo-input" accept="image/*" style="display:none;"/>
-            <img id="photo-preview" class="hidden" />
-            <div id="photo-placeholder">Tap to upload a memory photo</div>
+          <p class="admin-label">Plant a New Memory 🌸 (Select Multiple for Carousel)</p>
+          <div class="admin-upload-zone" id="photo-drop-zone" style="height:auto; min-height:120px; padding:10px;">
+            <input type="file" id="photo-input" accept="image/*" multiple style="display:none;"/>
+            <div id="photo-previews-container" style="display:flex; flex-wrap:wrap; gap:10px; justify-content:center;"></div>
+            <div id="photo-placeholder">Tap to upload memory photos</div>
           </div>
         </div>
         <input type="text" id="plant-location" placeholder="Location (e.g., Cairo, Egypt)" />
