@@ -226,6 +226,6 @@ if __name__ == '__main__':
             GET_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_input_text), CommandHandler('admin', admin_menu)],
             BANNER_UPLOAD: [MessageHandler(filters.PHOTO, handle_banner_upload), CommandHandler('admin', admin_menu)],
         },
-        fallbacks=[CommandHandler('cancel', cancel)], allow_reentry=True
+        fallbacks=[CommandHandler('cancel', cancel)]
     )
     app.add_handler(CommandHandler('start', start)); app.add_handler(conv_handler); print("Bot is blooming..."); app.run_polling()
