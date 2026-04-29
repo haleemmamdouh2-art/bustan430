@@ -677,7 +677,9 @@ input, textarea, select {
     margin-bottom: 80px;
   }
   
-  .card-content { text-align: left !important; padding: 15px 5px; }
+  /* Photo ALWAYS first on mobile */
+  .memory-card .card-image-wrap { order: 1 !important; }
+  .memory-card .card-content { order: 2 !important; text-align: left !important; padding: 15px 5px; }
   .card-meta, .card-actions { 
     justify-content: flex-start !important; 
     gap: 0.5rem;
