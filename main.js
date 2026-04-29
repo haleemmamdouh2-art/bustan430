@@ -63,9 +63,8 @@ function initScene() {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
 
-  // Scene
+  // Scene — no background color, sky sphere handles it
   scene = new THREE.Scene();
-  scene.background = new THREE.Color(palette.sky);
   scene.fog = new THREE.FogExp2(palette.fog, palette.fogDensity);
 
   // Gradient sky sphere
@@ -176,7 +175,7 @@ function createStars() {
 // GROUND
 // =============================================
 function createGround() {
-  // Rich green grass plane
+  // MeshBasicMaterial — always visible regardless of lighting/night
   const grassGeo = new THREE.PlaneGeometry(100, 100, 60, 60);
   const positions = grassGeo.attributes.position;
   for (let i = 0; i < positions.count; i++) {
@@ -185,24 +184,36 @@ function createGround() {
     positions.setY(i, Math.sin(x * 0.22) * 0.12 + Math.cos(z * 0.28) * 0.1);
   }
   grassGeo.computeVertexNormals();
-  const grassMat = new THREE.MeshLambertMaterial({ color: 0x3a8c3a, emissive: 0x0d220d, emissiveIntensity: 0.4 });
+
+  // Use vertex colors for a subtle variation across the grass
+  const col = new THREE.Color();
+  const colAttr = [];
+  const posAttr = grassGeo.attributes.position;
+  for (let i = 0; i < posAttr.count; i++) {
+    const v = 0.22 + Math.random() * 0.1;
+    col.setRGB(v * 0.35, v, v * 0.25);
+    colAttr.push(col.r, col.g, col.b);
+  }
+  grassGeo.setAttribute('color', new THREE.Float32BufferAttribute(colAttr, 3));
+
+  const grassMat = new THREE.MeshBasicMaterial({ vertexColors: true });
   const ground = new THREE.Mesh(grassGeo, grassMat);
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   scene.add(ground);
 
-  // Stone path — short and in front only
+  // Stone path
   const pathGeo = new THREE.PlaneGeometry(1.8, 10);
-  const pathMat = new THREE.MeshLambertMaterial({ color: 0xb0997a });
+  const pathMat = new THREE.MeshBasicMaterial({ color: 0xb0997a });
   const path = new THREE.Mesh(pathGeo, pathMat);
   path.rotation.x = -Math.PI / 2;
   path.position.set(0, 0.01, 4);
   scene.add(path);
 
-  // Small stepping stones along path
+  // Stepping stones
   for (let i = 0; i < 5; i++) {
-    const stoneGeo = new THREE.CylinderGeometry(0.25, 0.28, 0.05, 8);
-    const stoneMat = new THREE.MeshLambertMaterial({ color: 0x9a8870 });
+    const stoneGeo = new THREE.CylinderGeometry(0.25, 0.28, 0.06, 8);
+    const stoneMat = new THREE.MeshBasicMaterial({ color: 0x9a8870 });
     const stone = new THREE.Mesh(stoneGeo, stoneMat);
     stone.position.set((Math.random()-0.5)*0.4, 0.02, -1 + i * 2);
     stone.rotation.y = Math.random();
@@ -418,7 +429,12 @@ function closeMemoryCard() {
 async function loadMemories() {
   try {
     const { data, error } = await window.supabaseDb.from('memories').select('*').order('created_at', { ascending: true });
-    if (error) throw error;
+    if (error) {
+      // Schema not migrated yet — garden still shows, just empty
+      console.warn('DB schema needs migration. Run: ALTER TABLE public.memories DROP COLUMN IF EXISTS location_id;');
+      document.getElementById('flower-count').textContent = '0';
+      return;
+    }
     memories = data || [];
     flowers.forEach(f => scene.remove(f));
     flowers = [];
@@ -454,9 +470,7 @@ async function plantMemory() {
       photo: urlData.publicUrl,
       date,
       note,
-      flower_type: resolved,
-      // location_id required by schema — use null or a placeholder UUID
-      location_id: null
+      flower_type: resolved
     }]);
     if (dbErr) throw dbErr;
 
