@@ -1,15 +1,17 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 // =============================================
 // STATE
 // =============================================
-let scene, camera, renderer, controls, clock;
-let flowers = [];          // { mesh, memoryId, data }
-let hoveredFlower = null;
+let scene, camera, renderer, controls, clock, composer;
+let flowers = [];
 let isAdminUnlocked = false;
 let memories = [];
-let animFrame;
 let musicPlaying = false;
 
 const ADMIN_PASSWORD = 'bustan';
@@ -53,81 +55,100 @@ function initScene() {
   clock = new THREE.Clock();
   const canvas = document.getElementById('garden-canvas');
   const palette = getTimePalette();
+  const h = new Date().getHours();
+  const isNight = h >= 20 || h < 7;
 
-  // Renderer
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+  // Renderer — cinematic quality
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.2;
+  renderer.toneMappingExposure = isNight ? 0.9 : 1.3;
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
 
   // Scene
   scene = new THREE.Scene();
   scene.background = new THREE.Color(palette.sky);
-  scene.fog = new THREE.FogExp2(palette.fog, palette.fogDensity);
+  scene.fog = new THREE.FogExp2(palette.fog, palette.fogDensity * 0.6); // lighter fog
 
-  // Gradient sky sphere
+  // Sky sphere with gradient
   createSkySphere(palette);
 
-  // Camera — low, cinematic
-  camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 300);
-  camera.position.set(0, 3.5, 12);
-  camera.lookAt(0, 1.5, 0);
+  // Camera — cinematic low angle looking INTO the garden
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 400);
+  camera.position.set(0, 2.2, 11);
+  camera.lookAt(0, 1.5, -2);
 
   // Controls
   controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
-  controls.dampingFactor = 0.07;
-  controls.minDistance = 3;
-  controls.maxDistance = 28;
-  controls.minPolarAngle = 0.15;
-  controls.maxPolarAngle = Math.PI / 2.2;
-  controls.target.set(0, 1.5, 0);
+  controls.dampingFactor = 0.06;
+  controls.minDistance = 2;
+  controls.maxDistance = 22;
+  controls.minPolarAngle = 0.1;          // can't look straight up
+  controls.maxPolarAngle = Math.PI / 2.5; // can't look straight down
+  controls.target.set(0, 1, -2);
   controls.enablePan = false;
 
-  // Hemisphere light — sky/ground gradient light
-  const hemi = new THREE.HemisphereLight(palette.ambient, 0x1a4a10, 1.0);
+  // ---- LIGHTING ----
+  // Hemisphere (sky / ground colour)
+  const hemi = new THREE.HemisphereLight(
+    isNight ? 0x223366 : 0xc8e8ff,
+    isNight ? 0x0a1a06 : 0x3a6b20,
+    isNight ? 0.7 : 1.0
+  );
   scene.add(hemi);
 
-  // Ambient
-  const ambient = new THREE.AmbientLight(palette.ambient, 0.6);
-  scene.add(ambient);
+  // Main directional (sun / moon)
+  const sun = new THREE.DirectionalLight(palette.sun, palette.sunIntensity);
+  sun.position.set(isNight ? -8 : 12, isNight ? 20 : 18, isNight ? 10 : 6);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.near = 0.5;
+  sun.shadow.camera.far = 80;
+  sun.shadow.camera.left = -25; sun.shadow.camera.right = 25;
+  sun.shadow.camera.top  =  25; sun.shadow.camera.bottom = -25;
+  sun.shadow.bias = -0.001;
+  scene.add(sun);
 
-  // Sun / Moon directional light
-  const sunLight = new THREE.DirectionalLight(palette.sun, palette.sunIntensity);
-  sunLight.name = 'sun';
-  sunLight.position.set(12, 18, 8);
-  sunLight.castShadow = true;
-  sunLight.shadow.mapSize.set(2048, 2048);
-  sunLight.shadow.camera.near = 0.5;
-  sunLight.shadow.camera.far = 60;
-  sunLight.shadow.camera.left = -20;
-  sunLight.shadow.camera.right = 20;
-  sunLight.shadow.camera.top = 20;
-  sunLight.shadow.camera.bottom = -20;
-  scene.add(sunLight);
+  // Warm pink/rose rim for drama (flowers / edges)
+  const rim = new THREE.PointLight(isNight ? 0x4466ff : 0xff88aa, isNight ? 1.0 : 1.8, 35);
+  rim.position.set(-10, 7, -8);
+  scene.add(rim);
 
-  // Warm pink rim light for drama
-  const rimLight = new THREE.PointLight(0xff88aa, 1.5, 30);
-  rimLight.position.set(-8, 6, -8);
-  scene.add(rimLight);
+  // Soft fill from front
+  const fill = new THREE.DirectionalLight(isNight ? 0x223355 : 0xfff0e0, isNight ? 0.3 : 0.5);
+  fill.position.set(0, 5, 15);
+  scene.add(fill);
 
-  // Night stars
-  const h = new Date().getHours();
-  if (h >= 20 || h < 7) createStars();
+  // Stars at night
+  if (isNight) createStars();
 
-  // World
-  createGround(palette);
+  // World objects
+  createGround();
   createTrees();
-  createParticles(palette);
+  createParticles();
+
+  // ---- BLOOM POST-PROCESSING ----
+  composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  const bloom = new UnrealBloomPass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    isNight ? 0.6 : 0.3,  // strength
+    0.5,                   // radius
+    isNight ? 0.7 : 0.85  // threshold
+  );
+  composer.addPass(bloom);
+  composer.addPass(new OutputPass());
 
   // Resize
   window.addEventListener('resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
+    composer.setSize(window.innerWidth, window.innerHeight);
   });
 }
 
@@ -173,82 +194,147 @@ function createStars() {
 }
 
 // =============================================
-// GROUND
+// GROUND — canvas texture for photorealistic grass
 // =============================================
-function createGround() {
-  // Simplest possible approach — MeshBasicMaterial, never depends on lights
-  const geo = new THREE.PlaneGeometry(100, 100, 1, 1);
-  const mat = new THREE.MeshBasicMaterial({ color: 0x3d8c3a });
-  const ground = new THREE.Mesh(geo, mat);
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = 0;
-  scene.add(ground);
-
-  // Slightly darker center strip as path
-  const pathGeo = new THREE.PlaneGeometry(2, 12);
-  const pathMat = new THREE.MeshBasicMaterial({ color: 0xb0997a });
-  const path = new THREE.Mesh(pathGeo, pathMat);
-  path.rotation.x = -Math.PI / 2;
-  path.position.set(0, 0.01, 3);
-  scene.add(path);
+function makeGrassTexture() {
+  const size = 512;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size;
+  const ctx = cv.getContext('2d');
+  // Base gradient
+  const grd = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size*0.7);
+  grd.addColorStop(0,   '#4a9e42');
+  grd.addColorStop(0.5, '#3a8a36');
+  grd.addColorStop(1,   '#2d6e2a');
+  ctx.fillStyle = grd; ctx.fillRect(0, 0, size, size);
+  // Blade noise
+  for (let i = 0; i < 6000; i++) {
+    const x = Math.random() * size;
+    const y = Math.random() * size;
+    const l = Math.random() * 8 + 2;
+    const g = Math.floor(Math.random() * 60 + 100);
+    ctx.strokeStyle = `rgba(${Math.floor(g*0.4)},${g},${Math.floor(g*0.3)},0.35)`;
+    ctx.lineWidth = Math.random() * 1.2;
+    ctx.beginPath(); ctx.moveTo(x, y);
+    ctx.lineTo(x + (Math.random()-0.5)*3, y - l);
+    ctx.stroke();
+  }
+  const tex = new THREE.CanvasTexture(cv);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(12, 12);
+  return tex;
 }
 
+function createGround() {
+  const tex = makeGrassTexture();
+  const geo = new THREE.PlaneGeometry(120, 120, 80, 80);
+  // Gentle hills
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i);
+    pos.setY(i, Math.sin(x*0.18)*0.25 + Math.cos(z*0.22)*0.2 + Math.sin(x*0.55+z*0.4)*0.08);
+  }
+  geo.computeVertexNormals();
+  const mat = new THREE.MeshStandardMaterial({
+    map: tex, roughness: 0.95, metalness: 0.0,
+    color: 0xffffff
+  });
+  const ground = new THREE.Mesh(geo, mat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Stone path — separate geometry tiles
+  const pathMat = new THREE.MeshStandardMaterial({ color: 0xb8a888, roughness: 0.9, metalness: 0.05 });
+  for (let i = -3; i <= 3; i++) {
+    const stoneGeo = new THREE.BoxGeometry(1.6 + Math.random()*0.2, 0.08, 0.8 + Math.random()*0.2);
+    const stone = new THREE.Mesh(stoneGeo, pathMat);
+    stone.position.set((Math.random()-0.5)*0.3, 0.04, i * 1.1 + 1);
+    stone.rotation.y = (Math.random()-0.5)*0.15;
+    stone.receiveShadow = true; stone.castShadow = true;
+    scene.add(stone);
+  }
+}
+
+
 // =============================================
-// TREES (scene dressing)
+// TREES — realistic layered cones with PBR
 // =============================================
 function createTrees() {
   const positions = [
-    [-9, 0, -5], [9, 0, -4], [-7, 0, -10], [10, 0, -9], [-12, 0, 2],
-    [11, 0, 3], [-8, 0, 8], [9, 0, 7], [0, 0, -14], [-4, 0, -12], [5, 0, -11]
+    [-9,0,-4],[9,0,-3],[-6,0,-9],[10,0,-8],[-13,0,1],
+    [12,0,2],[-8,0,7],[10,0,6],[1,0,-13],[-5,0,-11],[6,0,-10],
+    [-15,0,-6],[14,0,-5],[-11,0,10],[13,0,9]
   ];
-  positions.forEach(([x, , z]) => {
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a2c0a, roughness: 0.95, metalness: 0 });
+  const leafColors = [0x2d6b22, 0x367a28, 0x245c1c, 0x3a8030, 0x1e5018];
+
+  positions.forEach(([x,,z]) => {
     const grp = new THREE.Group();
-    const h = 3.5 + Math.random() * 2.5;
+    const h = 4.5 + Math.random() * 3.5;
+
     // Trunk
-    const trunkGeo = new THREE.CylinderGeometry(0.15, 0.25, h * 0.4, 7);
-    const trunkMat = new THREE.MeshLambertMaterial({ color: 0x5c3d1e });
-    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-    trunk.position.y = h * 0.2;
+    const trunk = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.1, 0.22, h * 0.38, 8),
+      trunkMat
+    );
+    trunk.position.y = h * 0.19;
     trunk.castShadow = true;
     grp.add(trunk);
-    // Foliage — layered cones
-    const leafColors = [0x2d6b2d, 0x3a8a3a, 0x226622];
-    for (let j = 0; j < 3; j++) {
-      const coneGeo = new THREE.ConeGeometry(1.2 - j * 0.25, h * 0.38, 8);
-      const coneMat = new THREE.MeshLambertMaterial({
-        color: leafColors[j % 3],
-        emissive: 0x0a1a0a, emissiveIntensity: 0.3
+
+    // 4 foliage layers — each slightly offset and rotated
+    for (let j = 0; j < 4; j++) {
+      const lc = leafColors[Math.floor(Math.random() * leafColors.length)];
+      const leafMat = new THREE.MeshStandardMaterial({
+        color: lc, roughness: 0.88, metalness: 0,
+        emissive: new THREE.Color(lc).multiplyScalar(0.08)
       });
-      const cone = new THREE.Mesh(coneGeo, coneMat);
-      cone.position.y = h * 0.4 + j * (h * 0.22);
+      const radius = 1.6 - j * 0.28;
+      const coneH  = h * 0.42;
+      const cone   = new THREE.Mesh(new THREE.ConeGeometry(radius, coneH, 9), leafMat);
+      cone.position.y = h * 0.35 + j * (h * 0.18);
+      cone.rotation.y = j * 0.7;
       cone.castShadow = true;
       grp.add(cone);
     }
+
     grp.position.set(x, 0, z);
-    grp.scale.setScalar(0.9 + Math.random() * 0.3);
-    grp.rotation.y = Math.random() * Math.PI;
+    grp.scale.setScalar(0.85 + Math.random() * 0.35);
+    grp.rotation.y = Math.random() * Math.PI * 2;
     scene.add(grp);
   });
 }
 
+
 // =============================================
-// AMBIENT PARTICLES
+// PARTICLES — fireflies / pollen
 // =============================================
 function createParticles() {
-  const pGeo = new THREE.BufferGeometry();
-  const count = 150;
+  const geo = new THREE.BufferGeometry();
+  const count = 300;
   const pos = new Float32Array(count * 3);
+  const col = new Float32Array(count * 3);
+  const palette = getTimePalette();
+  const isNight = new Date().getHours() >= 20 || new Date().getHours() < 7;
   for (let i = 0; i < count; i++) {
-    pos[i*3]   = (Math.random() - 0.5) * 30;
-    pos[i*3+1] = 0.5 + Math.random() * 6;
-    pos[i*3+2] = (Math.random() - 0.5) * 30;
+    pos[i*3]   = (Math.random()-0.5) * 32;
+    pos[i*3+1] = 0.3 + Math.random() * 5;
+    pos[i*3+2] = (Math.random()-0.5) * 32;
+    // Fireflies are blue-green at night, gold/white in day
+    if (isNight) { col[i*3]=0.4; col[i*3+1]=1.0; col[i*3+2]=0.7; }
+    else         { col[i*3]=1.0; col[i*3+1]=0.92; col[i*3+2]=0.5; }
   }
-  pGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const pMat = new THREE.PointsMaterial({ color: 0xffe080, size: 0.08, transparent: true, opacity: 0.7 });
-  const points = new THREE.Points(pGeo, pMat);
-  points.name = 'particles';
-  scene.add(points);
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const mat = new THREE.PointsMaterial({
+    vertexColors: true, size: isNight ? 0.12 : 0.07,
+    transparent: true, opacity: isNight ? 0.9 : 0.6, sizeAttenuation: true
+  });
+  const pts = new THREE.Points(geo, mat);
+  pts.name = 'particles';
+  scene.add(pts);
 }
+
 
 // =============================================
 // FLOWER BUILDING
@@ -569,22 +655,32 @@ function createLandingParticles() {
 // ANIMATION LOOP
 // =============================================
 function animate() {
-  animFrame = requestAnimationFrame(animate);
+  requestAnimationFrame(animate);
   const elapsed = clock.getElapsedTime();
 
   // Sway flowers
   flowers.forEach(f => {
     const offset = f.userData.swayOffset || 0;
-    f.rotation.z = Math.sin(elapsed * 0.8 + offset) * 0.04;
-    f.rotation.x = Math.cos(elapsed * 0.6 + offset) * 0.025;
+    f.rotation.z = Math.sin(elapsed * 0.8 + offset) * 0.05;
+    f.rotation.x = Math.cos(elapsed * 0.5 + offset) * 0.03;
   });
 
-  // Drift particles
+  // Float particles gently upward and drift
   const pts = scene.getObjectByName('particles');
-  if (pts) pts.rotation.y = elapsed * 0.02;
+  if (pts) {
+    pts.rotation.y = elapsed * 0.015;
+    const posArr = pts.geometry.attributes.position.array;
+    for (let i = 1; i < posArr.length; i += 3) {
+      posArr[i] += 0.003;
+      if (posArr[i] > 7) posArr[i] = 0.2;
+    }
+    pts.geometry.attributes.position.needsUpdate = true;
+  }
 
   controls.update();
-  renderer.render(scene, camera);
+  // Use composer for bloom; fallback to renderer if composer not ready
+  if (composer) composer.render();
+  else renderer.render(scene, camera);
 }
 
 // =============================================
