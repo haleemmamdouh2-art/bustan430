@@ -226,35 +226,56 @@ function makeGrassTexture() {
 }
 
 function createGround() {
+  // MeshBasicMaterial — ALWAYS visible, no lighting dependency
   const tex = makeGrassTexture();
-  const geo = new THREE.PlaneGeometry(120, 120, 80, 80);
-  // Gentle hills
+  const geo = new THREE.PlaneGeometry(120, 120, 40, 40);
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i);
-    pos.setY(i, Math.sin(x*0.18)*0.25 + Math.cos(z*0.22)*0.2 + Math.sin(x*0.55+z*0.4)*0.08);
+    pos.setY(i, Math.sin(x*0.18)*0.18 + Math.cos(z*0.22)*0.14);
   }
   geo.computeVertexNormals();
-  const mat = new THREE.MeshStandardMaterial({
-    map: tex, roughness: 0.95, metalness: 0.0,
-    color: 0xffffff
-  });
+  const mat = new THREE.MeshBasicMaterial({ map: tex });
   const ground = new THREE.Mesh(geo, mat);
   ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
   scene.add(ground);
 
-  // Stone path — separate geometry tiles
-  const pathMat = new THREE.MeshStandardMaterial({ color: 0xb8a888, roughness: 0.9, metalness: 0.05 });
+  // Stone path
+  const pathMat = new THREE.MeshBasicMaterial({ color: 0xb8a888 });
   for (let i = -3; i <= 3; i++) {
-    const stoneGeo = new THREE.BoxGeometry(1.6 + Math.random()*0.2, 0.08, 0.8 + Math.random()*0.2);
-    const stone = new THREE.Mesh(stoneGeo, pathMat);
+    const stone = new THREE.Mesh(
+      new THREE.BoxGeometry(1.5 + Math.random()*0.2, 0.07, 0.75 + Math.random()*0.15),
+      pathMat
+    );
     stone.position.set((Math.random()-0.5)*0.3, 0.04, i * 1.1 + 1);
-    stone.rotation.y = (Math.random()-0.5)*0.15;
-    stone.receiveShadow = true; stone.castShadow = true;
+    stone.rotation.y = (Math.random()-0.5)*0.2;
     scene.add(stone);
   }
+
+  // Grass tufts — clusters of thin blades
+  const bladeMat = new THREE.MeshBasicMaterial({ color: 0x3a7a2a, side: THREE.DoubleSide });
+  const darkBlade = new THREE.MeshBasicMaterial({ color: 0x2a5a1a, side: THREE.DoubleSide });
+  for (let t = 0; t < 200; t++) {
+    const gx = (Math.random()-0.5) * 40;
+    const gz = (Math.random()-0.5) * 40;
+    // Skip path area
+    if (Math.abs(gx) < 1.2 && gz > -1 && gz < 8) continue;
+    const clusterGrp = new THREE.Group();
+    const bladeCount = 4 + Math.floor(Math.random() * 4);
+    for (let b = 0; b < bladeCount; b++) {
+      const h = 0.18 + Math.random() * 0.22;
+      const bladeGeo = new THREE.PlaneGeometry(0.06, h);
+      const blade = new THREE.Mesh(bladeGeo, Math.random() > 0.4 ? bladeMat : darkBlade);
+      blade.position.set((Math.random()-0.5)*0.2, h*0.5, (Math.random()-0.5)*0.2);
+      blade.rotation.y = Math.random() * Math.PI;
+      blade.rotation.z = (Math.random()-0.5) * 0.4;
+      clusterGrp.add(blade);
+    }
+    clusterGrp.position.set(gx, 0.01, gz);
+    scene.add(clusterGrp);
+  }
 }
+
 
 
 // =============================================
@@ -307,28 +328,25 @@ function createTrees() {
 
 
 // =============================================
-// PARTICLES — fireflies / pollen
+// PARTICLES — just a few dim fireflies near ground
 // =============================================
 function createParticles() {
   const geo = new THREE.BufferGeometry();
-  const count = 300;
+  const count = 50;  // way fewer
   const pos = new Float32Array(count * 3);
-  const col = new Float32Array(count * 3);
-  const palette = getTimePalette();
   const isNight = new Date().getHours() >= 20 || new Date().getHours() < 7;
   for (let i = 0; i < count; i++) {
-    pos[i*3]   = (Math.random()-0.5) * 32;
-    pos[i*3+1] = 0.3 + Math.random() * 5;
-    pos[i*3+2] = (Math.random()-0.5) * 32;
-    // Fireflies are blue-green at night, gold/white in day
-    if (isNight) { col[i*3]=0.4; col[i*3+1]=1.0; col[i*3+2]=0.7; }
-    else         { col[i*3]=1.0; col[i*3+1]=0.92; col[i*3+2]=0.5; }
+    pos[i*3]   = (Math.random()-0.5) * 28;
+    pos[i*3+1] = 0.1 + Math.random() * 1.8; // stay close to ground
+    pos[i*3+2] = (Math.random()-0.5) * 28;
   }
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   const mat = new THREE.PointsMaterial({
-    vertexColors: true, size: isNight ? 0.12 : 0.07,
-    transparent: true, opacity: isNight ? 0.9 : 0.6, sizeAttenuation: true
+    color: isNight ? 0x88ffcc : 0xffee88,
+    size: 0.07,
+    transparent: true,
+    opacity: 0.35,  // much dimmer
+    sizeAttenuation: true
   });
   const pts = new THREE.Points(geo, mat);
   pts.name = 'particles';
@@ -336,88 +354,91 @@ function createParticles() {
 }
 
 
+
 // =============================================
-// FLOWER BUILDING
+// FLOWER HEAD — canvas sprite so it looks REAL
 // =============================================
-function makeFlower(type) {
-  const group = new THREE.Group();
-
-  // Stem
-  const stemGeo = new THREE.CylinderGeometry(0.04, 0.06, 1.2, 7);
-  const stemMat = new THREE.MeshLambertMaterial({ color: 0x2d5a1b });
-  const stem = new THREE.Mesh(stemGeo, stemMat);
-  stem.position.y = 0.6;
-  stem.castShadow = true;
-  group.add(stem);
-
-  // Leaf
-  const leafGeo = new THREE.SphereGeometry(0.18, 6, 4);
-  leafGeo.scale(1, 0.25, 0.5);
-  const leafMat = new THREE.MeshLambertMaterial({ color: 0x3a7a20 });
-  const leaf = new THREE.Mesh(leafGeo, leafMat);
-  leaf.position.set(0.18, 0.5, 0);
-  leaf.rotation.z = 0.3;
-  group.add(leaf);
-
-  // Head (varies by type)
-  const resolvedType = (type === 'random' || !type)
-    ? FLOWER_TYPES[Math.floor(Math.random() * FLOWER_TYPES.length)]
-    : type;
-
-  const head = buildFlowerHead(resolvedType);
-  head.position.y = 1.25;
-  head.castShadow = true;
-  group.add(head);
-
-  // Glow highlight
-  const glowGeo = new THREE.SphereGeometry(0.3, 8, 8);
-  const glowMat = new THREE.MeshBasicMaterial({
-    color: head.children[0]?.material?.color || new THREE.Color(0xffaacc),
-    transparent: true, opacity: 0.12
-  });
-  const glow = new THREE.Mesh(glowGeo, glowMat);
-  glow.position.y = 1.25;
-  group.add(glow);
-
-  group.userData.baseY = group.position.y;
-  group.userData.swayOffset = Math.random() * Math.PI * 2;
-  return group;
-}
-
-function buildFlowerHead(type) {
-  const head = new THREE.Group();
-
+function makeFlowerSprite(type) {
   const configs = {
-    rose:      { color: 0xe8637a, petalCount: 12, centerColor: 0xcc2244 },
-    tulip:     { color: 0xff6699, petalCount: 6,  centerColor: 0xcc0044 },
-    sunflower: { color: 0xffcc00, petalCount: 16, centerColor: 0x6b3a00 },
-    lily:      { color: 0xcc88ff, petalCount: 6,  centerColor: 0xffeecc },
-    daisy:     { color: 0xffffff, petalCount: 14, centerColor: 0xffee00 },
+    rose:      { petalColor: '#e8526a', centerColor: '#7a1030', petalCount: 12, petalLen: 0.42 },
+    tulip:     { petalColor: '#ff6090', centerColor: '#cc0040', petalCount: 6,  petalLen: 0.55 },
+    sunflower: { petalColor: '#ffcc00', centerColor: '#5a3000', petalCount: 16, petalLen: 0.38 },
+    lily:      { petalColor: '#cc88ff', centerColor: '#ffe8aa', petalCount: 6,  petalLen: 0.50 },
+    daisy:     { petalColor: '#f0f0f0', centerColor: '#ffee00', petalCount: 14, petalLen: 0.36 },
   };
   const cfg = configs[type] || configs.daisy;
 
-  // Center disk
-  const diskGeo = new THREE.SphereGeometry(0.15, 10, 8);
-  diskGeo.scale(1, 0.5, 1);
-  const diskMat = new THREE.MeshLambertMaterial({ color: cfg.centerColor });
-  head.add(new THREE.Mesh(diskGeo, diskMat));
+  const size = 256;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size;
+  const ctx = cv.getContext('2d');
+  const cx = size / 2, cy = size / 2;
+  const pr = size * 0.18; // petal distance from center
+  const pl = size * cfg.petalLen; // petal length
 
-  // Petals
-  const petalMat = new THREE.MeshLambertMaterial({ color: cfg.color, side: THREE.DoubleSide });
+  // Draw petals
   for (let i = 0; i < cfg.petalCount; i++) {
-    const angle = (i / cfg.petalCount) * Math.PI * 2;
-    const petalGeo = (type === 'tulip')
-      ? new THREE.ConeGeometry(0.12, 0.35, 6)
-      : new THREE.SphereGeometry(0.12, 6, 4);
-    if (type !== 'tulip') petalGeo.scale(0.6, 0.3, 1);
-    const petal = new THREE.Mesh(petalGeo, petalMat);
-    const dist = type === 'tulip' ? 0.15 : 0.22;
-    petal.position.set(Math.cos(angle) * dist, 0, Math.sin(angle) * dist);
-    petal.rotation.set(type === 'tulip' ? -0.4 : -Math.PI / 2.5, angle, 0);
-    head.add(petal);
+    const a = (i / cfg.petalCount) * Math.PI * 2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(a);
+    const grad = ctx.createRadialGradient(0, -pr, 0, 0, -pr - pl*0.5, pl*0.6);
+    grad.addColorStop(0, cfg.petalColor);
+    grad.addColorStop(1, cfg.petalColor + '44');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.ellipse(0, -(pr + pl*0.5), size*0.072, pl*0.5, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
   }
-  return head;
+
+  // Center
+  const cGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, size*0.14);
+  cGrad.addColorStop(0, '#ffffff88');
+  cGrad.addColorStop(0.3, cfg.centerColor);
+  cGrad.addColorStop(1, cfg.centerColor + 'aa');
+  ctx.fillStyle = cGrad;
+  ctx.beginPath();
+  ctx.arc(cx, cy, size*0.13, 0, Math.PI*2);
+  ctx.fill();
+
+  const tex = new THREE.CanvasTexture(cv);
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false });
+  const sprite = new THREE.Sprite(mat);
+  sprite.scale.set(1.1, 1.1, 1);
+  return sprite;
 }
+
+function makeFlower(type) {
+  const group = new THREE.Group();
+
+  const resolvedType = (type === 'random' || !type)
+    ? FLOWER_TYPES[Math.floor(Math.random() * FLOWER_TYPES.length)] : type;
+
+  // Stem
+  const stemMat = new THREE.MeshBasicMaterial({ color: 0x2d6b1a });
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.05, 1.4, 6), stemMat);
+  stem.position.y = 0.7;
+  group.add(stem);
+
+  // Leaf — flat plane angled off stem
+  const leafMat = new THREE.MeshBasicMaterial({ color: 0x3a8020, side: THREE.DoubleSide });
+  const leafGeo = new THREE.PlaneGeometry(0.35, 0.18);
+  const leaf = new THREE.Mesh(leafGeo, leafMat);
+  leaf.position.set(0.22, 0.55, 0);
+  leaf.rotation.set(0.2, 0, 0.5);
+  group.add(leaf);
+
+  // Flower head — canvas sprite
+  const sprite = makeFlowerSprite(resolvedType);
+  sprite.position.y = 1.45;
+  group.add(sprite);
+
+  group.userData.swayOffset = Math.random() * Math.PI * 2;
+  group.userData.flowerType = resolvedType;
+  return group;
+}
+
 
 function placeFlower(memory) {
   const type = memory.flower_type || 'random';
