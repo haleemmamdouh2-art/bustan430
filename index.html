@@ -1,235 +1,177 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Bustan x Haleem | Flipbook</title>
-  
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>Bustan's Garden 🌹</title>
+  <meta name="description" content="A Garden for Bustan, grown by Haleem."/>
+
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=VT323&family=Caveat:wght@400..700&family=Dancing+Script:wght@400..700&family=Outfit:wght@300;400;500;700&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-  
-  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Noto+Naskh+Arabic:wght@400;600&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
 
-  <!-- Petal Animation Background -->
-  <div id="petal-container"></div>
+  <!-- THREE.JS CANVAS -->
+  <canvas id="garden-canvas"></canvas>
 
-  <!-- FLIPBOOK CONTAINER -->
-  <div class="flipbook-wrapper">
-    <div id="book">
-      
-      <!-- PAGE 1: FRONT COVER (Hardcover) -->
-      <div class="page page-cover page-cover-top" data-density="hard">
-        <div class="page-content center-content">
-          <div class="retro-window bounce-anim">
-            <div class="retro-title-bar"><span>welcome.exe</span><div class="retro-btn-group"><button class="retro-btn">X</button></div></div>
-            <div class="retro-content" style="padding: 2rem;">
-              <h1 class="pixel-heading glow-text">Bustan x Haleem</h1>
-              <p class="pixel-subtext">A Digital Journey</p>
-              <div class="cartoon-placeholder float-anim" style="margin-top: 2rem;">
-                <!-- Replace with your transparent cartoon image -->
-                <img src="https://cdn-icons-png.flaticon.com/512/3238/3238012.png" alt="Cartoon" class="interactive-cartoon" />
-              </div>
-              <p class="blink-anim" style="margin-top: 2rem; color: #666; font-family: monospace;">[ Swipe Left to Open ]</p>
+  <!-- ===================== LANDING OVERLAY ===================== -->
+  <div id="landing" class="overlay active">
+    <div class="landing-content">
+      <p class="landing-arabic">بستان</p>
+      <h1 class="landing-title">A Garden for Bustan,<br><em>grown by Haleem.</em></h1>
+      <p class="landing-sub">Every flower here is a memory of us.</p>
+      <button id="enter-btn" class="cta-btn">
+        <span>Enter the Garden</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+    <div class="landing-particles" id="landing-particles"></div>
+  </div>
+
+  <!-- ===================== MAIN HUD ===================== -->
+  <div id="hud" class="hidden">
+
+    <!-- Time of day badge -->
+    <div id="time-badge" class="hud-badge">
+      <span id="time-icon">🌸</span>
+      <span id="time-label">Morning</span>
+    </div>
+
+    <!-- Flower count -->
+    <div id="flower-count-badge" class="hud-badge" style="right:1.2rem; left:auto;">
+      <span id="flower-count">0</span>
+      <span>🌸</span>
+    </div>
+
+    <!-- Admin button -->
+    <button id="admin-btn" class="fab-btn" title="Admin Panel">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    </button>
+
+    <!-- Lofi player -->
+    <div id="music-player" class="music-player">
+      <button id="music-toggle" class="music-btn" title="Toggle music">
+        <svg id="music-icon-play" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="music-icon-pause" class="hidden" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+      </button>
+      <div class="music-info">
+        <span class="music-label">Lofi Garden ♪</span>
+        <div class="music-bars">
+          <div class="bar"></div><div class="bar"></div><div class="bar"></div><div class="bar"></div>
+        </div>
+      </div>
+    </div>
+    <!-- Hidden YouTube iframe for audio -->
+    <div id="yt-player-wrap" style="position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;">
+      <iframe id="yt-player" width="1" height="1"
+        src="https://www.youtube-nocookie.com/embed/jfKfPfyJRdk?autoplay=0&loop=1&playlist=jfKfPfyJRdk&enablejsapi=1"
+        allow="autoplay; encrypted-media" frameborder="0"></iframe>
+    </div>
+
+    <!-- Hint text -->
+    <p id="hint-text" class="hint-text">Tap a flower to open a memory</p>
+  </div>
+
+  <!-- ===================== MEMORY CARD OVERLAY ===================== -->
+  <div id="memory-overlay" class="overlay hidden">
+    <div class="memory-backdrop" id="memory-backdrop"></div>
+    <div class="memory-card" id="memory-card">
+      <button class="memory-close-btn" id="memory-close-btn">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div class="memory-photo-wrap">
+        <img id="memory-photo-img" src="" alt="Memory" class="memory-photo"/>
+        <div class="memory-photo-gradient"></div>
+      </div>
+      <div class="memory-info">
+        <p id="memory-date-text" class="memory-date"></p>
+        <p id="memory-note-text" class="memory-note"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== ADMIN PANEL ===================== -->
+  <div id="admin-overlay" class="overlay hidden">
+    <div class="admin-panel">
+      <div class="admin-header">
+        <h2 class="admin-title">Admin Panel 🌱</h2>
+        <button id="admin-close-btn" class="icon-close-btn">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="admin-body">
+
+        <!-- Login form (shown first) -->
+        <div id="admin-login-form">
+          <p class="admin-label">Enter your password to plant memories</p>
+          <input type="password" id="admin-pass-input" class="garden-input" placeholder="Password..." />
+          <button id="admin-login-btn" class="garden-btn">Unlock Garden</button>
+          <p id="admin-err" class="admin-err hidden">Wrong password 🥀</p>
+        </div>
+
+        <!-- Plant form (shown after login) -->
+        <div id="admin-plant-form" class="hidden">
+          <p class="admin-label">Plant a new memory 🌷</p>
+
+          <!-- Photo upload -->
+          <div id="photo-drop-zone" class="photo-drop-zone">
+            <input type="file" id="photo-input" accept="image/*" style="display:none;"/>
+            <img id="photo-preview" class="hidden" alt="preview"/>
+            <div id="photo-placeholder">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+              <span>Tap to add photo</span>
             </div>
           </div>
-        </div>
-      </div>
 
-      <!-- PAGE 2: INSIDE COVER -->
-      <div class="page page-cover" data-density="hard">
-        <div class="page-content" style="background: var(--dark-bg);"></div>
-      </div>
+          <input type="date" id="plant-date" class="garden-input" />
+          <textarea id="plant-note" class="garden-input garden-textarea" placeholder="Write a memory..." rows="3"></textarea>
 
-      <!-- PAGE 3: INTRO -->
-      <div class="page">
-        <div class="page-content">
-          <h2 class="pixel-heading text-pink" style="font-size: 2rem;">How it started...</h2>
-          <p class="font-outfit" style="margin-bottom: 2rem; font-size: 0.9rem; color: #222;">Every great story has a beginning. Ours started perfectly.</p>
-          
-          <div style="display:flex; flex-direction: column; align-items:center; gap: 1rem;">
-            <div class="polaroid rotate-left pop-anim">
-              <div class="polaroid-img-box">Image Here</div>
-              <p class="font-caveat">Day 1 🌸</p>
-            </div>
-            <div class="polaroid rotate-right pop-anim" style="animation-delay: 0.3s;">
-              <div class="polaroid-img-box">Image Here</div>
-              <p class="font-caveat">Our first date!</p>
-            </div>
+          <select id="plant-flower" class="garden-input">
+            <option value="random">🎲 Random flower</option>
+            <option value="rose">🌹 Rose</option>
+            <option value="tulip">🌷 Tulip</option>
+            <option value="sunflower">🌻 Sunflower</option>
+            <option value="lily">🪷 Lily</option>
+            <option value="daisy">🌼 Daisy</option>
+          </select>
+
+          <button id="plant-btn" class="garden-btn">
+            <span id="plant-btn-text">Plant this Memory 🌱</span>
+          </button>
+
+          <div style="margin-top:1.5rem; border-top:1px solid rgba(255,255,255,0.1); padding-top:1rem;">
+            <p class="admin-label" style="margin-bottom:0.8rem;">Existing Memories</p>
+            <div id="admin-memory-list" style="display:flex;flex-direction:column;gap:0.5rem;max-height:200px;overflow-y:auto;"></div>
           </div>
-          
-          <div class="page-number">1</div>
         </div>
-      </div>
 
-      <!-- PAGE 4: THE MAP -->
-      <div class="page" id="map-page">
-        <div class="page-content" style="padding: 0; display: flex; flex-direction: column;">
-          
-          <div class="retro-title-bar">
-            <span>memory_map.exe</span>
-            <div class="retro-btn-group"><button class="retro-btn">X</button></div>
-          </div>
-          
-          <div style="flex: 1; position: relative;">
-            <!-- THE ORIGINAL MAP -->
-            <div id="map" style="width: 100%; height: 100%; position: absolute; top:0; left:0;"></div>
-            
-            <!-- Mobile Navigation Bar overlayed on the map -->
-            <nav class="mobile-nav" style="bottom: 10px; width: 90%; transform: translateX(-50%); z-index: 1000;">
-              <button id="nav-home" class="nav-btn active">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-              </button>
-              <button id="nav-live-growth" class="nav-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
-              </button>
-              <button id="nav-admin" class="nav-btn">
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              </button>
-            </nav>
-          </div>
-
-          <div class="page-number">2</div>
-        </div>
-      </div>
-
-      <!-- PAGE 5: COMING SOON -->
-      <div class="page">
-        <div class="page-content center-content" style="justify-content: center;">
-          <h2 class="pixel-heading text-blue" style="font-size: 1.8rem; margin-bottom:1rem;">More Chapters...</h2>
-          <p class="font-outfit" style="color:#333; text-align: center;">This is where we will add the Quizzes, The Agreement, and all the other interactive cartoon animations!</p>
-          <div class="cartoon-placeholder spin-anim" style="margin-top: 2rem;">
-            <img src="https://cdn-icons-png.flaticon.com/512/833/833472.png" alt="Heart" style="width: 50px;" />
-          </div>
-          <div class="page-number">3</div>
-        </div>
-      </div>
-
-      <!-- PAGE 6: BLANK -->
-      <div class="page">
-        <div class="page-content">
-          <div class="page-number">4</div>
-        </div>
-      </div>
-
-      <!-- PAGE 7: INSIDE BACK COVER -->
-      <div class="page page-cover" data-density="hard">
-        <div class="page-content" style="background: var(--dark-bg);"></div>
-      </div>
-
-      <!-- PAGE 8: BACK COVER (Hardcover) -->
-      <div class="page page-cover page-cover-bottom" data-density="hard">
-        <div class="page-content center-content">
-          <h2 class="pixel-heading" style="color: #666; font-size: 1.5rem;">The End</h2>
-        </div>
-      </div>
-
-    </div> <!-- End Book -->
-  </div> <!-- End Wrapper -->
-
-
-  <!-- ========================================= -->
-  <!-- HIDDEN MODALS AND SHEETS FOR THE MAP APP  -->
-  <!-- ========================================= -->
-
-  <!-- Admin Login Modal -->
-  <div id="admin-login-modal" class="modal hidden">
-    <div class="glass-panel">
-      <h3>Admin Access</h3>
-      <input type="password" id="admin-password" placeholder="Enter Password" class="input-field" />
-      <div class="modal-actions">
-        <button id="login-cancel-btn" class="ghost-btn">Cancel</button>
-        <button id="login-submit-btn" class="primary-btn">Login</button>
       </div>
     </div>
   </div>
 
-  <!-- Full Screen Admin Dashboard -->
-  <div id="admin-dashboard-sheet" class="overlay fade-out" style="background: var(--dark-bg); z-index: 2500; flex-direction: column; justify-content: flex-start; align-items: stretch; overflow-y: auto;">
-    <div class="sheet-header" style="margin-top: 1rem; padding-top: 1rem;">
-      <h3 class="poetic-heading" style="font-size: 2rem; margin: 0;">Admin Panel</h3>
-      <button id="close-admin-dashboard-btn" class="icon-btn">&times;</button>
-    </div>
-    <div style="padding: 1.5rem; flex: 1;">
-      <div class="glass-panel-small" style="margin-bottom: 2rem; width: auto; max-width: none;">
-        <h4 style="color: var(--gold); margin-bottom: 1rem; text-align: left; font-family: var(--font-body);">Plant via Link or Coordinates</h4>
-        <input type="text" id="admin-map-link" placeholder="Google Maps Link OR '30.044, 31.235'" class="input-field" style="margin-bottom: 0.5rem;" />
-        <p id="admin-plant-error" style="color: #ff9999; font-size: 0.8rem; margin-bottom: 1rem; display: none; text-align: left;"></p>
-        <select id="admin-flower-type" class="input-field">
-          <option value="red_rose">Red Rose 🌹</option>
-          <option value="white_rose">White Flower 🌼</option>
-          <option value="pink_rose">Pink Blossom 🌸</option>
-          <option value="lily">Lotus 🪷</option>
-          <option value="sunflower">Sunflower 🌻</option>
-          <option value="tulip">Tulip 🌷</option>
-          <option value="cherry_blossom">Hibiscus 🌺</option>
-          <option value="daisy">Wilted Rose 🥀</option>
-        </select>
-        <button id="admin-extract-plant-btn" class="primary-btn w-100">Extract & Plant</button>
-      </div>
-      <div class="glass-panel-small" style="width: auto; max-width: none;">
-        <h4 style="color: var(--gold); margin-bottom: 1rem; text-align: left; font-family: var(--font-body);">Manage Garden</h4>
-        <div id="admin-locations-list" style="display: flex; flex-direction: column; gap: 1rem;"></div>
-      </div>
+  <!-- ===================== LOADING SCREEN ===================== -->
+  <div id="loading-screen" class="overlay hidden">
+    <div class="loading-content">
+      <div class="loading-flower">🌸</div>
+      <p class="loading-text">Growing your garden...</p>
     </div>
   </div>
 
-  <!-- Album Sheet -->
-  <div id="album-sheet" class="bottom-sheet hidden">
-    <div class="sheet-handle"></div>
-    <div class="sheet-header">
-      <h3 class="poetic-heading" style="font-size: 1.8rem; margin: 0;">Memories Here</h3>
-      <button id="close-album-btn" class="icon-btn">&times;</button>
-    </div>
-    <div class="sheet-content">
-      <div id="album-feed" class="memory-feed"></div>
-    </div>
-    <div id="album-admin-controls" class="sheet-footer hidden">
-      <button id="add-memory-to-album-btn" class="primary-btn w-100">Add Memory Here</button>
-    </div>
-  </div>
-
-  <!-- Add Memory Modal -->
-  <div id="add-memory-modal" class="modal hidden">
-    <div class="glass-panel">
-      <h3>Add a Memory</h3>
-      <input type="file" id="memory-photo" accept="image/*" class="input-field" />
-      <input type="date" id="memory-date" class="input-field" />
-      <textarea id="memory-note" placeholder="Write a memory..." class="input-field" rows="3"></textarea>
-      
-      <label class="subtext" style="display:block; text-align:left; margin-bottom: 5px;">Font Style:</label>
-      <select id="memory-font" class="input-field">
-        <option value="Outfit">Modern (Outfit)</option>
-        <option value="Playfair Display">Classic (Playfair)</option>
-        <option value="Caveat">Handwriting (Caveat)</option>
-        <option value="Dancing Script">Cursive (Dancing Script)</option>
-      </select>
-
-      <label class="subtext" style="display:block; text-align:left; margin-bottom: 5px;">Polaroid Color:</label>
-      <select id="memory-color" class="input-field">
-        <option value="#ffffff">Classic White</option>
-        <option value="#fff9e6">Vintage Cream</option>
-        <option value="#ffe6e6">Soft Rose</option>
-        <option value="#e6ffe6">Mint Sage</option>
-        <option value="#f2e6ff">Lavender</option>
-      </select>
-
-      <div class="modal-actions">
-        <button id="cancel-memory-btn" class="ghost-btn">Cancel</button>
-        <button id="save-memory-btn" class="primary-btn">Save</button>
-      </div>
-    </div>
-  </div>
-
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <!-- PageFlip Library -->
-  <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.js"></script>
-  
+  <!-- Scripts -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+    }
+  }
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
   <script src="supabase.js"></script>
-  <script src="main.js"></script>
+  <script type="module" src="main.js"></script>
 </body>
 </html>
