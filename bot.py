@@ -77,22 +77,34 @@ def get_draft_keyboard(data):
 # COMMANDS
 # =============================================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Welcome to Bustan's Journal Bot! 🌹\n\nSend me photos to plant a memory, or use /admin to manage the garden.")
+    target = update.message if update.message else update.callback_query.message
+    await target.reply_text("Welcome to Bustan's Journal Bot! 🌹\n\nSend me photos to plant a memory, or use /admin to manage the garden.")
+    return ConversationHandler.END
 
 async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Handle both message updates and callback updates
+    is_callback = update.callback_query is not None
+    target = update.callback_query.message if is_callback else update.message
+    
     try:
         res = supabase.table("memories").select("*").order("date", desc=True).limit(10).execute()
         keyboard = []
         for m in res.data:
             keyboard.append([InlineKeyboardButton(f"🖼️ {m['title'] or 'Untitled'} ({m['date']})", callback_data=f"manage_{m['id']}")])
         keyboard.append([InlineKeyboardButton("🖼️ Change Site Banner Photo", callback_data="change_banner")])
-        await update.message.reply_text("🌿 **Garden Management**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        
+        if is_callback:
+            await update.callback_query.edit_message_text("🌿 **Garden Management**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        else:
+            await target.reply_text("🌿 **Garden Management**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+            
         return MAIN_MENU
     except Exception as e:
-        await update.message.reply_text(f"Error: {e}"); return ConversationHandler.END
+        await target.reply_text(f"Error: {e}"); return ConversationHandler.END
 
 async def banner_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Please send the new photo you want to use for the site banner.")
+    target = update.message if update.message else update.callback_query.message
+    await target.reply_text("Please send the new photo you want to use for the site banner.")
     return BANNER_UPLOAD
 
 # =============================================
@@ -108,29 +120,36 @@ async def handle_photos_start(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query; await query.answer(); action = query.data
     if action == "ignore": return MAIN_MENU
+    
     if action == "change_banner":
         await query.edit_message_text("Please send the new photo for the site banner.")
         return BANNER_UPLOAD
+        
     if action.startswith("manage_"):
         mem_id = action.split("_")[1]
         keyboard = [[InlineKeyboardButton("✏️ Edit Details", callback_data=f"edit_existing_{mem_id}")], [InlineKeyboardButton("🗑️ Delete Memory", callback_data=f"confirm_del_{mem_id}")], [InlineKeyboardButton("🔙 Back to List", callback_data="back_to_admin")]]
         await query.edit_message_text(f"Manage memory {mem_id}:", reply_markup=InlineKeyboardMarkup(keyboard))
         return MAIN_MENU
+        
     if action == "back_to_admin":
-        return await admin_menu(query, context)
+        return await admin_menu(update, context)
+        
     if action.startswith("confirm_del_"):
         mem_id = action.split("_")[2]
         keyboard = [[InlineKeyboardButton("❗ Yes, Delete Forever", callback_data=f"delete_final_{mem_id}")], [InlineKeyboardButton("❌ Cancel", callback_data="back_to_admin")]]
         await query.edit_message_text("⚠️ **Are you sure?**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
         return MAIN_MENU
+        
     if action.startswith("delete_final_"):
         mem_id = action.split("_")[2]; supabase.table("memories").delete().eq("id", mem_id).execute()
-        await query.edit_message_text("✅ Memory deleted."); return ConversationHandler.END
+        await query.edit_message_text("✅ Memory deleted."); return admin_menu(update, context)
+        
     if action.startswith("edit_existing_"):
         mem_id = action.split("_")[2]; res = supabase.table("memories").select("*").eq("id", mem_id).execute()
         context.user_data['draft'] = res.data[0]; context.user_data['is_editing_id'] = mem_id
         await query.edit_message_text("Editing existing memory:", reply_markup=get_draft_keyboard(res.data[0]))
         return MAIN_MENU
+        
     if action == "plant_now": return await plant_memory_final(query, context)
     if action == "back_to_menu":
         await query.edit_message_text("Back to menu...", reply_markup=get_draft_keyboard(context.user_data['draft']))
@@ -147,6 +166,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if action.startswith("flower_"):
         context.user_data['draft']['flower_type'] = action.replace("flower_", "")
         await query.edit_message_text("Flower updated!", reply_markup=get_draft_keyboard(context.user_data['draft'])); return MAIN_MENU
+        
     prompt_map = {"set_title": "Send Title:", "set_loc": "Send Location:", "set_note": "Send Story:"}
     context.user_data['current_field'] = action; await query.edit_message_text(prompt_map[action]); return GET_INPUT
 
@@ -202,10 +222,10 @@ if __name__ == '__main__':
     conv_handler = ConversationHandler(
         entry_points=[MessageHandler(filters.PHOTO, handle_photos_start), CommandHandler('admin', admin_menu), CommandHandler('banner', banner_cmd)],
         states={
-            MAIN_MENU: [CallbackQueryHandler(menu_callback)],
-            GET_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_input_text)],
-            BANNER_UPLOAD: [MessageHandler(filters.PHOTO, handle_banner_upload)],
+            MAIN_MENU: [CallbackQueryHandler(menu_callback), CommandHandler('admin', admin_menu), CommandHandler('banner', banner_cmd)],
+            GET_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_input_text), CommandHandler('admin', admin_menu)],
+            BANNER_UPLOAD: [MessageHandler(filters.PHOTO, handle_banner_upload), CommandHandler('admin', admin_menu)],
         },
         fallbacks=[CommandHandler('cancel', cancel)], allow_reentry=True
     )
-    app.add_handler(CommandHandler('start', start)); app.add_handler(CommandHandler('admin', admin_menu)); app.add_handler(CommandHandler('banner', banner_cmd)); app.add_handler(conv_handler); print("Bot is blooming..."); app.run_polling()
+    app.add_handler(CommandHandler('start', start)); app.add_handler(conv_handler); print("Bot is blooming..."); app.run_polling()
