@@ -1,7 +1,8 @@
 import os
 import logging
 import asyncio
-from datetime import datetime
+import calendar
+from datetime import datetime, timedelta
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -38,14 +39,48 @@ FLOWER_MAP = {
     'daisy': '🌼 Daisy'
 }
 
+def create_calendar(year=None, month=None):
+    now = datetime.now()
+    if year is None: year = now.year
+    if month is None: month = now.month
+    
+    # Header: Month and Year
+    keyboard = [
+        [InlineKeyboardButton(f"{calendar.month_name[month]} {year}", callback_data="ignore")],
+        [InlineKeyboardButton(day, callback_data="ignore") for day in ["M", "T", "W", "T", "F", "S", "S"]]
+    ]
+    
+    # Days
+    month_calendar = calendar.monthcalendar(year, month)
+    for week in month_calendar:
+        row = []
+        for day in week:
+            if day == 0:
+                row.append(InlineKeyboardButton(" ", callback_data="ignore"))
+            else:
+                row.append(InlineKeyboardButton(str(day), callback_data=f"date_{year}_{month}_{day}"))
+        keyboard.append(row)
+        
+    # Navigation
+    nav_row = [
+        InlineKeyboardButton("❮ Prev", callback_data=f"cal_{year if month > 1 else year-1}_{month-1 if month > 1 else 12}"),
+        InlineKeyboardButton("Next ❯", callback_data=f"cal_{year if month < 12 else year+1}_{month+1 if month < 12 else 1}")
+    ]
+    keyboard.append(nav_row)
+    keyboard.append([InlineKeyboardButton("🔙 Back to Draft", callback_data="back_to_menu")])
+    
+    return InlineKeyboardMarkup(keyboard)
+
 def get_draft_keyboard(data):
     """Generates the main interactive menu for the memory draft"""
     title = data.get('title', 'Not set')
     loc = data.get('location', 'Not set')
     note = data.get('note', 'Not set')
+    date = data.get('date', datetime.now().strftime("%Y-%m-%d"))
     flower = FLOWER_MAP.get(data.get('flower_type', 'rose'), '🌹 Rose')
     
     keyboard = [
+        [InlineKeyboardButton(f"📅 Date: {date}", callback_data="set_date")],
         [InlineKeyboardButton(f"📝 Title: {title[:20]}...", callback_data="set_title")],
         [InlineKeyboardButton(f"📍 Location: {loc[:20]}...", callback_data="set_loc")],
         [InlineKeyboardButton(f"📖 Story: {note[:20]}...", callback_data="set_note")],
@@ -62,7 +97,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def handle_photos_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Triggered when user sends photos without being in a 'GET_INPUT' state"""
     if 'draft' not in context.user_data:
         context.user_data['draft'] = {
             'photos': [],
@@ -76,9 +110,8 @@ async def handle_photos_start(update: Update, context: ContextTypes.DEFAULT_TYPE
     photo_file = await update.message.photo[-1].get_file()
     context.user_data['draft']['photos'].append(photo_file)
     
-    # Send/Update the interactive menu
     count = len(context.user_data['draft']['photos'])
-    msg = f"📸 {count} Photo(s) received!\n\nUse the buttons below to customize your memory before planting it."
+    msg = f"📸 {count} Photo(s) received!\n\nUse the buttons below to customize your memory."
     
     reply_markup = get_draft_keyboard(context.user_data['draft'])
     await update.message.reply_text(msg, reply_markup=reply_markup)
@@ -89,12 +122,32 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     action = query.data
+    if action == "ignore": return MAIN_MENU
     
     if action == "plant_now":
         return await plant_memory_final(query, context)
         
+    if action == "back_to_menu":
+        await query.edit_message_text("Draft updated! Back to menu...", reply_markup=get_draft_keyboard(context.user_data['draft']))
+        return MAIN_MENU
+
+    if action == "set_date":
+        await query.edit_message_text("Pick the date for this memory:", reply_markup=create_calendar())
+        return MAIN_MENU
+
+    if action.startswith("cal_"):
+        _, year, month = action.split('_')
+        await query.edit_message_text("Pick the date for this memory:", reply_markup=create_calendar(int(year), int(month)))
+        return MAIN_MENU
+
+    if action.startswith("date_"):
+        _, y, m, d = action.split('_')
+        selected_date = f"{y}-{int(m):02d}-{int(d):02d}"
+        context.user_data['draft']['date'] = selected_date
+        await query.edit_message_text(f"Date set to {selected_date}! Back to draft...", reply_markup=get_draft_keyboard(context.user_data['draft']))
+        return MAIN_MENU
+
     if action == "set_flower":
-        # Show flower selection sub-menu
         keyboard = [[InlineKeyboardButton(v, callback_data=f"flower_{k}")] for k, v in FLOWER_MAP.items()]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text("Pick a flower tag for this memory:", reply_markup=reply_markup)
@@ -127,7 +180,6 @@ async def handle_input_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     
     context.user_data['draft'][field_map[field]] = text
-    
     reply_markup = get_draft_keyboard(context.user_data['draft'])
     await update.message.reply_text("Field updated! 📝", reply_markup=reply_markup)
     return MAIN_MENU
@@ -143,12 +195,7 @@ async def plant_memory_final(query, context):
             ext = photo_file.file_path.split('.')[-1]
             filename = f"tg_{int(datetime.now().timestamp())}_{i}.{ext}"
             
-            supabase.storage.from_("memories").upload(
-                path=filename,
-                file=bytes(file_bytes),
-                file_options={"content-type": f"image/{ext}"}
-            )
-            
+            supabase.storage.from_("memories").upload(path=filename, file=bytes(file_bytes), file_options={"content-type": f"image/{ext}"})
             url_res = supabase.storage.from_("memories").get_public_url(filename)
             uploaded_urls.append(url_res)
 
@@ -163,7 +210,6 @@ async def plant_memory_final(query, context):
         }
         
         supabase.table("memories").insert(memory_data).execute()
-        
         await query.message.reply_text("Memory successfully planted! 🌹✨ Check the site!")
         context.user_data.clear()
         return ConversationHandler.END
@@ -180,7 +226,6 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 if __name__ == '__main__':
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
-    
     conv_handler = ConversationHandler(
         entry_points=[MessageHandler(filters.PHOTO, handle_photos_start)],
         states={
@@ -190,9 +235,7 @@ if __name__ == '__main__':
         fallbacks=[CommandHandler('cancel', cancel)],
         allow_reentry=True
     )
-    
     app.add_handler(CommandHandler('start', start))
     app.add_handler(conv_handler)
-    
     print("Bot is blooming...")
     app.run_polling()
