@@ -593,8 +593,9 @@ input, textarea, select {
   .nav-bar { padding: 0 1.5rem; }
   .garden-stats { display: none; }
   
-  .hero-arabic { font-size: 2rem; }
-  .hero-sub { font-size: 1.1rem; }
+  .hero { height: 45vh; }
+  .hero-arabic { font-size: 1.8rem; padding: 0 1rem; }
+  .hero-sub { font-size: 1rem; padding: 0 1rem; }
   
   .section-title { font-size: 2.2rem; }
   
@@ -609,5 +610,5 @@ input, textarea, select {
   .card-title { font-size: 1.8rem; }
   
   .note-title { font-size: 2rem; }
-  .note-text { font-size: 1.2rem; }
+  .note-text { font-size: 1.1rem; }
 }
