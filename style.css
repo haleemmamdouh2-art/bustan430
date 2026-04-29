@@ -82,13 +82,14 @@ h1, h2, h3, h4 {
 .hero {
   position: relative;
   width: 100%;
-  height: 70vh;
+  aspect-ratio: 16 / 9;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   text-align: center;
   overflow: hidden;
+  background: var(--purple-dark);
 }
 
 .hero-image-wrap {
@@ -593,9 +594,9 @@ input, textarea, select {
   .nav-bar { padding: 0 1.5rem; }
   .garden-stats { display: none; }
   
-  .hero { height: 45vh; }
-  .hero-arabic { font-size: 1.8rem; padding: 0 1rem; }
-  .hero-sub { font-size: 1rem; padding: 0 1rem; }
+  .hero { height: auto; aspect-ratio: 16 / 9; }
+  .hero-arabic { font-size: 1.6rem; padding: 0 1rem; }
+  .hero-sub { font-size: 0.9rem; padding: 0 1rem; }
   
   .section-title { font-size: 2.2rem; }
   
