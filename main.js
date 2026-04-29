@@ -63,8 +63,9 @@ function initScene() {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
 
-  // Scene — no background color, sky sphere handles it
+  // Scene
   scene = new THREE.Scene();
+  scene.background = new THREE.Color(palette.sky);
   scene.fog = new THREE.FogExp2(palette.fog, palette.fogDensity);
 
   // Gradient sky sphere
@@ -175,50 +176,21 @@ function createStars() {
 // GROUND
 // =============================================
 function createGround() {
-  // MeshBasicMaterial — always visible regardless of lighting/night
-  const grassGeo = new THREE.PlaneGeometry(100, 100, 60, 60);
-  const positions = grassGeo.attributes.position;
-  for (let i = 0; i < positions.count; i++) {
-    const x = positions.getX(i);
-    const z = positions.getZ(i);
-    positions.setY(i, Math.sin(x * 0.22) * 0.12 + Math.cos(z * 0.28) * 0.1);
-  }
-  grassGeo.computeVertexNormals();
-
-  // Use vertex colors for a subtle variation across the grass
-  const col = new THREE.Color();
-  const colAttr = [];
-  const posAttr = grassGeo.attributes.position;
-  for (let i = 0; i < posAttr.count; i++) {
-    const v = 0.22 + Math.random() * 0.1;
-    col.setRGB(v * 0.35, v, v * 0.25);
-    colAttr.push(col.r, col.g, col.b);
-  }
-  grassGeo.setAttribute('color', new THREE.Float32BufferAttribute(colAttr, 3));
-
-  const grassMat = new THREE.MeshBasicMaterial({ vertexColors: true });
-  const ground = new THREE.Mesh(grassGeo, grassMat);
+  // Simplest possible approach — MeshBasicMaterial, never depends on lights
+  const geo = new THREE.PlaneGeometry(100, 100, 1, 1);
+  const mat = new THREE.MeshBasicMaterial({ color: 0x3d8c3a });
+  const ground = new THREE.Mesh(geo, mat);
   ground.rotation.x = -Math.PI / 2;
-  ground.receiveShadow = true;
+  ground.position.y = 0;
   scene.add(ground);
 
-  // Stone path
-  const pathGeo = new THREE.PlaneGeometry(1.8, 10);
+  // Slightly darker center strip as path
+  const pathGeo = new THREE.PlaneGeometry(2, 12);
   const pathMat = new THREE.MeshBasicMaterial({ color: 0xb0997a });
   const path = new THREE.Mesh(pathGeo, pathMat);
   path.rotation.x = -Math.PI / 2;
-  path.position.set(0, 0.01, 4);
+  path.position.set(0, 0.01, 3);
   scene.add(path);
-
-  // Stepping stones
-  for (let i = 0; i < 5; i++) {
-    const stoneGeo = new THREE.CylinderGeometry(0.25, 0.28, 0.06, 8);
-    const stoneMat = new THREE.MeshBasicMaterial({ color: 0x9a8870 });
-    const stone = new THREE.Mesh(stoneGeo, stoneMat);
-    stone.position.set((Math.random()-0.5)*0.4, 0.02, -1 + i * 2);
-    stone.rotation.y = Math.random();
-    scene.add(stone);
-  }
 }
 
 // =============================================
@@ -461,18 +433,28 @@ async function plantMemory() {
     const ext = file.name.split('.').pop();
     const fileName = `mem_${Date.now()}.${ext}`;
     const { error: upErr } = await window.supabaseDb.storage.from('memories').upload(fileName, file, { upsert: true });
-    if (upErr) throw upErr;
+    if (upErr) throw new Error('Upload failed: ' + upErr.message);
 
     const { data: urlData } = window.supabaseDb.storage.from('memories').getPublicUrl(fileName);
-
     const resolved = (ftype === 'random') ? FLOWER_TYPES[Math.floor(Math.random() * FLOWER_TYPES.length)] : ftype;
+
     const { error: dbErr } = await window.supabaseDb.from('memories').insert([{
       photo: urlData.publicUrl,
       date,
       note,
       flower_type: resolved
     }]);
-    if (dbErr) throw dbErr;
+
+    if (dbErr) {
+      // Most likely cause: old schema still has location_id NOT NULL
+      if (dbErr.message && dbErr.message.includes('location_id')) {
+        btnTxt.textContent = '⚠️ Run SQL migration first!';
+        setTimeout(() => { btnTxt.textContent = 'Plant this Memory 🌱'; btn.disabled = false; }, 3000);
+        showAdminError('Your database needs a migration. Go to Supabase → SQL Editor and run:\n\nALTER TABLE public.memories DROP COLUMN IF EXISTS location_id;');
+        return;
+      }
+      throw new Error(dbErr.message);
+    }
 
     // Reset form
     document.getElementById('photo-input').value = '';
@@ -482,9 +464,26 @@ async function plantMemory() {
 
     await loadMemories();
     renderAdminMemoryList();
-    alert('Memory planted! 🌸');
-  } catch (e) { alert('Error: ' + e.message); }
-  finally { btn.disabled = false; btnTxt.textContent = 'Plant this Memory 🌱'; }
+    btnTxt.textContent = 'Planted! 🌸';
+    setTimeout(() => { btnTxt.textContent = 'Plant this Memory 🌱'; }, 2000);
+  } catch (e) { 
+    showAdminError('Error: ' + e.message);
+  } finally { 
+    btn.disabled = false;
+  }
+}
+
+function showAdminError(msg) {
+  let errEl = document.getElementById('admin-plant-err');
+  if (!errEl) {
+    errEl = document.createElement('div');
+    errEl.id = 'admin-plant-err';
+    errEl.style.cssText = 'background:rgba(255,80,80,0.15);border:1px solid #ff6b6b;border-radius:10px;padding:0.8rem;color:#ff9999;font-size:0.8rem;white-space:pre-wrap;margin-top:0.5rem;line-height:1.5;';
+    document.getElementById('admin-plant-form').appendChild(errEl);
+  }
+  errEl.textContent = msg;
+  errEl.style.display = 'block';
+  setTimeout(() => { errEl.style.display = 'none'; }, 12000);
 }
 
 async function deleteMemory(id) {
