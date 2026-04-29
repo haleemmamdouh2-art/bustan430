@@ -91,10 +91,12 @@
       </div>
     </div>
     <!-- Hidden YT Player -->
-    <div style="width:0;height:0;opacity:0;pointer-events:none;">
-      <iframe id="yt-player" width="1" height="1"
-        src="https://www.youtube-nocookie.com/embed/jfKfPfyJRdk?autoplay=0&loop=1&playlist=jfKfPfyJRdk&enablejsapi=1"
-        allow="autoplay; encrypted-media" frameborder="0"></iframe>
+    <div style="width:1px;height:1px;opacity:0.01;pointer-events:none;position:absolute;bottom:0;">
+      <div class="video-container">
+        <iframe id="bg-music-player" width="100" height="100" 
+          src="https://www.youtube-nocookie.com/embed/jfKfPfyJRdk?autoplay=0&loop=1&playlist=jfKfPfyJRdk&enablejsapi=1&mute=0"
+          allow="autoplay; encrypted-media" frameborder="0"></iframe>
+      </div>
     </div>
   </footer>
 
@@ -143,7 +145,9 @@
           <input type="text" id="edit-hero-english" placeholder="Hero English Text" />
           <input type="text" id="edit-pacer-title" placeholder="Pacer Note Title" />
           <textarea id="edit-pacer-text" placeholder="Pacer Note Text" style="height:80px;"></textarea>
-          <button id="save-settings-btn" class="garden-btn">Update Site Text</button>
+          <p class="admin-label" style="margin-top:1rem;">YouTube Song Link 🎵</p>
+          <input type="text" id="edit-youtube-link" placeholder="https://www.youtube.com/watch?v=..." />
+          <button id="save-settings-btn" class="garden-btn">Update Site Content</button>
         </div>
 
         <div style="margin-top:2rem;">
