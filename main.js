@@ -159,27 +159,42 @@ async function loadSettings() {
 }
 
 function applySettings() {
-  if (siteSettings.hero_image_url) document.getElementById('hero-img').src = siteSettings.hero_image_url;
-  if (siteSettings.hero_arabic) document.getElementById('hero-arabic').textContent = siteSettings.hero_arabic;
-  if (siteSettings.hero_english) document.getElementById('hero-english').textContent = siteSettings.hero_english;
-  if (siteSettings.pacer_title) document.getElementById('pacer-title').textContent = siteSettings.pacer_title;
-  if (siteSettings.pacer_text) document.getElementById('pacer-text').textContent = siteSettings.pacer_text;
+  const heroImg = document.getElementById('hero-img');
+  const heroArabic = document.getElementById('hero-arabic');
+  const heroEnglish = document.getElementById('hero-english');
+  const pacerTitle = document.getElementById('pacer-title');
+  const pacerText = document.getElementById('pacer-text');
+  const navLogo = document.getElementById('nav-logo');
+  const timelineTitle = document.getElementById('timeline-title');
+  const timelineSubtitle = document.getElementById('timeline-subtitle');
+  const daysLabel = document.getElementById('counter-days-label');
+  const memsLabel = document.getElementById('counter-mems-label');
+  const eternalLabel = document.getElementById('counter-eternal-label');
+  const musicLabel = document.getElementById('music-label');
+  const pacerLabel = document.getElementById('pacer-label');
+
+  if (siteSettings.hero_image_url && heroImg) heroImg.src = siteSettings.hero_image_url;
+  if (siteSettings.hero_arabic && heroArabic) heroArabic.textContent = siteSettings.hero_arabic;
+  if (siteSettings.hero_english && heroEnglish) heroEnglish.textContent = siteSettings.hero_english;
+  if (siteSettings.pacer_title && pacerTitle) pacerTitle.textContent = siteSettings.pacer_title;
+  if (siteSettings.pacer_text && pacerText) pacerText.textContent = siteSettings.pacer_text;
 
   // New Editorial Texts
-  if (siteSettings.nav_logo) document.getElementById('nav-logo').textContent = siteSettings.nav_logo;
-  if (siteSettings.timeline_title) document.getElementById('timeline-title').textContent = siteSettings.timeline_title;
-  if (siteSettings.timeline_subtitle) document.getElementById('timeline-subtitle').textContent = siteSettings.timeline_subtitle;
-  if (siteSettings.counter_days_label) document.getElementById('counter-days-label').textContent = siteSettings.counter_days_label;
-  if (siteSettings.counter_mems_label) document.getElementById('counter-mems-label').textContent = siteSettings.counter_mems_label;
-  if (siteSettings.counter_eternal_label) document.getElementById('counter-eternal-label').textContent = siteSettings.counter_eternal_label;
-  if (siteSettings.music_label) document.getElementById('music-label').textContent = siteSettings.music_label;
-  if (siteSettings.pacer_label) document.getElementById('pacer-label').textContent = siteSettings.pacer_label;
+  if (siteSettings.nav_logo && navLogo) navLogo.textContent = siteSettings.nav_logo;
+  if (siteSettings.timeline_title && timelineTitle) timelineTitle.textContent = siteSettings.timeline_title;
+  if (siteSettings.timeline_subtitle && timelineSubtitle) timelineSubtitle.textContent = siteSettings.timeline_subtitle;
+  if (siteSettings.counter_days_label && daysLabel) daysLabel.textContent = siteSettings.counter_days_label;
+  if (siteSettings.counter_mems_label && memsLabel) memsLabel.textContent = siteSettings.counter_mems_label;
+  if (siteSettings.counter_eternal_label && eternalLabel) eternalLabel.textContent = siteSettings.counter_eternal_label;
+  if (siteSettings.music_label && musicLabel) musicLabel.textContent = siteSettings.music_label;
+  if (siteSettings.pacer_label && pacerLabel) pacerLabel.textContent = siteSettings.pacer_label;
 
   // Apply YouTube Music
   if (siteSettings.youtube_link) {
     const videoId = extractYouTubeId(siteSettings.youtube_link);
-    if (videoId) {
-      document.getElementById('bg-music-player').src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=0&loop=1&playlist=${videoId}&enablejsapi=1&mute=0`;
+    const musicPlayer = document.getElementById('bg-music-player');
+    if (videoId && musicPlayer) {
+      musicPlayer.src = `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=0&loop=1&playlist=${videoId}&enablejsapi=1&mute=0`;
     }
   }
 
@@ -189,11 +204,19 @@ function applySettings() {
   document.querySelector('.hero-content').style.transform = `translate(${x}px, ${y}px)`;
 
   // Fill inputs in admin
-  document.getElementById('edit-hero-arabic').value = siteSettings.hero_arabic || '';
-  document.getElementById('edit-hero-english').value = siteSettings.hero_english || '';
-  document.getElementById('edit-pacer-title').value = siteSettings.pacer_title || '';
-  document.getElementById('edit-pacer-text').value = siteSettings.pacer_text || '';
-  document.getElementById('edit-youtube-link').value = siteSettings.youtube_link || '';
+  const editHeroAr = document.getElementById('edit-hero-arabic');
+  const editHeroEn = document.getElementById('edit-hero-english');
+  const editPacerTi = document.getElementById('edit-pacer-title');
+  const editPacerTe = document.getElementById('edit-pacer-text');
+  const editYoutube = document.getElementById('edit-youtube-link');
+  const editMusicLb = document.getElementById('edit-music-label');
+
+  if (editHeroAr) editHeroAr.value = siteSettings.hero_arabic || '';
+  if (editHeroEn) editHeroEn.value = siteSettings.hero_english || '';
+  if (editPacerTi) editPacerTi.value = siteSettings.pacer_title || '';
+  if (editPacerTe) editPacerTe.value = siteSettings.pacer_text || '';
+  if (editYoutube) editYoutube.value = siteSettings.youtube_link || '';
+  if (editMusicLb) editMusicLb.value = siteSettings.music_label || '';
   
   if (isAdminUnlocked) enableInlineEditing();
 }
@@ -202,29 +225,36 @@ async function saveSettings() {
   const x = parseFloat(siteSettings.hero_pos_x) || 0;
   const y = parseFloat(siteSettings.hero_pos_y) || 0;
 
-  const settings = [
-    { key: 'hero_arabic', value: document.getElementById('hero-arabic').textContent },
-    { key: 'hero_english', value: document.getElementById('hero-english').textContent },
-    { key: 'pacer_title', value: document.getElementById('pacer-title').textContent },
-    { key: 'pacer_text', value: document.getElementById('pacer-text').textContent },
-    { key: 'nav_logo', value: document.getElementById('nav-logo').textContent },
-    { key: 'timeline_title', value: document.getElementById('timeline-title').textContent },
-    { key: 'timeline_subtitle', value: document.getElementById('timeline-subtitle').textContent },
-    { key: 'counter_days_label', value: document.getElementById('counter-days-label').textContent },
-    { key: 'counter_mems_label', value: document.getElementById('counter-mems-label').textContent },
-    { key: 'counter_eternal_label', value: document.getElementById('counter-eternal-label').textContent },
-    { key: 'music_label', value: document.getElementById('music-label').textContent },
-    { key: 'pacer_label', value: document.getElementById('pacer-label').textContent },
-    { key: 'youtube_link', value: document.getElementById('edit-youtube-link').value },
-    { key: 'hero_pos_x', value: x.toString() },
-    { key: 'hero_pos_y', value: y.toString() }
-  ];
+  const settings = [];
+  const addSetting = (key, id, attr = 'textContent') => {
+    const el = document.getElementById(id);
+    if (el) settings.push({ key, value: el[attr] });
+    else if (siteSettings[key]) settings.push({ key, value: siteSettings[key] });
+  };
+
+  addSetting('hero_arabic', 'hero-arabic');
+  addSetting('hero_english', 'hero-english');
+  addSetting('pacer_title', 'pacer-title');
+  addSetting('pacer_text', 'pacer-text');
+  addSetting('nav_logo', 'nav-logo');
+  addSetting('timeline_title', 'timeline-title');
+  addSetting('timeline_subtitle', 'timeline-subtitle');
+  addSetting('counter_days_label', 'counter-days-label');
+  addSetting('counter_mems_label', 'counter-mems-label');
+  addSetting('counter_eternal_label', 'counter-eternal-label');
+  addSetting('music_label', 'music-label');
+  addSetting('pacer_label', 'pacer-label');
   
-  // Also sync admin form
-  document.getElementById('edit-hero-arabic').value = settings[0].value;
-  document.getElementById('edit-hero-english').value = settings[1].value;
-  document.getElementById('edit-pacer-title').value = settings[2].value;
-  document.getElementById('edit-pacer-text').value = settings[3].value;
+  settings.push({ key: 'youtube_link', value: document.getElementById('edit-youtube-link').value });
+  settings.push({ key: 'music_label', value: document.getElementById('edit-music-label').value });
+  settings.push({ key: 'hero_pos_x', value: x.toString() });
+  settings.push({ key: 'hero_pos_y', value: y.toString() });
+
+  // Update inputs in admin panel if they exist
+  const editHeroAr = document.getElementById('edit-hero-arabic');
+  const editHeroEn = document.getElementById('edit-hero-english');
+  if (editHeroAr) editHeroAr.value = siteSettings.hero_arabic || '';
+  if (editHeroEn) editHeroEn.value = siteSettings.hero_english || '';
 
   try {
     const { error } = await window.supabaseDb.from('site_settings').upsert(settings);
