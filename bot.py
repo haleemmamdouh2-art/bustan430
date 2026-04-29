@@ -29,7 +29,7 @@ logging.basicConfig(
 )
 
 # States
-MAIN_MENU, GET_INPUT, BANNER_UPLOAD = range(3)
+MAIN_MENU, GET_INPUT, BANNER_UPLOAD, SONG_INPUT = range(4)
 
 FLOWER_MAP = {
     'rose': '🌹 Rose',
@@ -78,34 +78,34 @@ def get_draft_keyboard(data):
 # =============================================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = update.message if update.message else update.callback_query.message
-    await target.reply_text("Welcome to Bustan's Journal Bot! 🌹\n\nSend me photos to plant a memory, or use /admin to manage the garden.")
+    await target.reply_text("Welcome to Bustan's Journal Bot! 🌹\n\nSend me photos to plant a memory, or use the menu below to manage the site.")
     return ConversationHandler.END
 
 async def admin_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Handle both message updates and callback updates
     is_callback = update.callback_query is not None
     target = update.callback_query.message if is_callback else update.message
-    
     try:
         res = supabase.table("memories").select("*").order("date", desc=True).limit(10).execute()
         keyboard = []
         for m in res.data:
             keyboard.append([InlineKeyboardButton(f"🖼️ {m['title'] or 'Untitled'} ({m['date']})", callback_data=f"manage_{m['id']}")])
         keyboard.append([InlineKeyboardButton("🖼️ Change Site Banner Photo", callback_data="change_banner")])
-        
-        if is_callback:
-            await update.callback_query.edit_message_text("🌿 **Garden Management**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-        else:
-            await target.reply_text("🌿 **Garden Management**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-            
+        keyboard.append([InlineKeyboardButton("🎵 Change Background Song", callback_data="change_song")])
+        if is_callback: await update.callback_query.edit_message_text("🌿 **Garden Management**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
+        else: await target.reply_text("🌿 **Garden Management**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
         return MAIN_MENU
     except Exception as e:
         await target.reply_text(f"Error: {e}"); return ConversationHandler.END
 
 async def banner_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = update.message if update.message else update.callback_query.message
-    await target.reply_text("Please send the new photo you want to use for the site banner.")
+    await target.reply_text("Please send the new photo for the site banner.")
     return BANNER_UPLOAD
+
+async def song_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    target = update.message if update.message else update.callback_query.message
+    await target.reply_text("Please send the YouTube link for the new background song.")
+    return SONG_INPUT
 
 # =============================================
 # CALLBACKS & INPUTS
@@ -120,40 +120,27 @@ async def handle_photos_start(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query; await query.answer(); action = query.data
     if action == "ignore": return MAIN_MENU
-    
-    if action == "change_banner":
-        await query.edit_message_text("Please send the new photo for the site banner.")
-        return BANNER_UPLOAD
-        
+    if action == "change_banner": await query.edit_message_text("Send the new banner photo:"); return BANNER_UPLOAD
+    if action == "change_song": await query.edit_message_text("Send the YouTube link for the song:"); return SONG_INPUT
     if action.startswith("manage_"):
         mem_id = action.split("_")[1]
         keyboard = [[InlineKeyboardButton("✏️ Edit Details", callback_data=f"edit_existing_{mem_id}")], [InlineKeyboardButton("🗑️ Delete Memory", callback_data=f"confirm_del_{mem_id}")], [InlineKeyboardButton("🔙 Back to List", callback_data="back_to_admin")]]
         await query.edit_message_text(f"Manage memory {mem_id}:", reply_markup=InlineKeyboardMarkup(keyboard))
         return MAIN_MENU
-        
-    if action == "back_to_admin":
-        return await admin_menu(update, context)
-        
+    if action == "back_to_admin": return await admin_menu(update, context)
     if action.startswith("confirm_del_"):
         mem_id = action.split("_")[2]
         keyboard = [[InlineKeyboardButton("❗ Yes, Delete Forever", callback_data=f"delete_final_{mem_id}")], [InlineKeyboardButton("❌ Cancel", callback_data="back_to_admin")]]
-        await query.edit_message_text("⚠️ **Are you sure?**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown')
-        return MAIN_MENU
-        
+        await query.edit_message_text("⚠️ **Are you sure?**", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode='Markdown'); return MAIN_MENU
     if action.startswith("delete_final_"):
         mem_id = action.split("_")[2]; supabase.table("memories").delete().eq("id", mem_id).execute()
-        await query.edit_message_text("✅ Memory deleted."); return admin_menu(update, context)
-        
+        await query.edit_message_text("✅ Memory deleted."); return await admin_menu(update, context)
     if action.startswith("edit_existing_"):
         mem_id = action.split("_")[2]; res = supabase.table("memories").select("*").eq("id", mem_id).execute()
         context.user_data['draft'] = res.data[0]; context.user_data['is_editing_id'] = mem_id
-        await query.edit_message_text("Editing existing memory:", reply_markup=get_draft_keyboard(res.data[0]))
-        return MAIN_MENU
-        
+        await query.edit_message_text("Editing existing memory:", reply_markup=get_draft_keyboard(res.data[0])); return MAIN_MENU
     if action == "plant_now": return await plant_memory_final(query, context)
-    if action == "back_to_menu":
-        await query.edit_message_text("Back to menu...", reply_markup=get_draft_keyboard(context.user_data['draft']))
-        return MAIN_MENU
+    if action == "back_to_menu": await query.edit_message_text("Back to menu...", reply_markup=get_draft_keyboard(context.user_data['draft'])); return MAIN_MENU
     if action == "set_date": await query.edit_message_text("Pick the date:", reply_markup=create_calendar()); return MAIN_MENU
     if action.startswith("cal_"):
         _, y, m = action.split('_'); await query.edit_message_text("Pick the date:", reply_markup=create_calendar(int(y), int(m))); return MAIN_MENU
@@ -166,7 +153,6 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if action.startswith("flower_"):
         context.user_data['draft']['flower_type'] = action.replace("flower_", "")
         await query.edit_message_text("Flower updated!", reply_markup=get_draft_keyboard(context.user_data['draft'])); return MAIN_MENU
-        
     prompt_map = {"set_title": "Send Title:", "set_loc": "Send Location:", "set_note": "Send Story:"}
     context.user_data['current_field'] = action; await query.edit_message_text(prompt_map[action]); return GET_INPUT
 
@@ -174,16 +160,19 @@ async def handle_banner_upload(update: Update, context: ContextTypes.DEFAULT_TYP
     await update.message.reply_text("Updating site banner... ⏳")
     try:
         photo_file = await update.message.photo[-1].get_file()
-        file_bytes = await photo_file.download_as_bytearray()
-        ext = photo_file.file_path.split('.')[-1]
-        filename = f"banner_{int(datetime.now().timestamp())}.{ext}"
-        supabase.storage.from_("memories").upload(path=filename, file=bytes(file_bytes), file_options={"content-type": f"image/{ext}"})
-        url_res = supabase.storage.from_("memories").get_public_url(filename)
+        fb = await photo_file.download_as_bytearray(); ext = photo_file.file_path.split('.')[-1]; fn = f"banner_{int(datetime.now().timestamp())}.{ext}"
+        supabase.storage.from_("memories").upload(path=fn, file=bytes(fb), file_options={"content-type": f"image/{ext}"})
+        url_res = supabase.storage.from_("memories").get_public_url(fn)
         supabase.table("site_settings").upsert([{"key": "hero_image_url", "value": url_res}]).execute()
-        await update.message.reply_text("✅ Banner photo updated successfully!")
-        return ConversationHandler.END
-    except Exception as e:
-        await update.message.reply_text(f"Error: {e}"); return ConversationHandler.END
+        await update.message.reply_text("✅ Banner updated successfully!"); return ConversationHandler.END
+    except Exception as e: await update.message.reply_text(f"Error: {e}"); return ConversationHandler.END
+
+async def handle_song_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    link = update.message.text; await update.message.reply_text("Updating song... ⏳")
+    try:
+        supabase.table("site_settings").upsert([{"key": "youtube_link", "value": link}]).execute()
+        await update.message.reply_text("✅ Background song updated! Refresh the site to hear it."); return ConversationHandler.END
+    except Exception as e: await update.message.reply_text(f"Error: {e}"); return ConversationHandler.END
 
 async def handle_input_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     field = context.user_data.get('current_field'); text = update.message.text
@@ -197,9 +186,8 @@ async def plant_memory_final(query, context):
     try:
         if not edit_id:
             uploaded_urls = []
-            for i, photo_file in enumerate(draft['photos']):
-                fb = await photo_file.download_as_bytearray(); ext = photo_file.file_path.split('.')[-1]
-                fn = f"tg_{int(datetime.now().timestamp())}_{i}.{ext}"
+            for i, pf in enumerate(draft['photos']):
+                fb = await pf.download_as_bytearray(); ext = pf.file_path.split('.')[-1]; fn = f"tg_{int(datetime.now().timestamp())}_{i}.{ext}"
                 supabase.storage.from_("memories").upload(path=fn, file=bytes(fb), file_options={"content-type": f"image/{ext}"})
                 uploaded_urls.append(supabase.storage.from_("memories").get_public_url(fn))
             draft['photos'] = uploaded_urls; draft['photo'] = uploaded_urls[0] if uploaded_urls else ""
@@ -207,24 +195,24 @@ async def plant_memory_final(query, context):
         if edit_id: supabase.table("memories").update(memory_data).eq("id", edit_id).execute()
         else: supabase.table("memories").insert(memory_data).execute()
         await query.message.reply_text("Memory successfully saved! 🌹✨"); context.user_data.clear(); return ConversationHandler.END
-    except Exception as e:
-        await query.message.reply_text(f"Error: {e}"); return ConversationHandler.END
+    except Exception as e: await query.message.reply_text(f"Error: {e}"); return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear(); await update.message.reply_text("Action cancelled."); return ConversationHandler.END
 
 async def post_init(application):
-    commands = [BotCommand("start", "Welcome"), BotCommand("admin", "Manage memories"), BotCommand("banner", "Update site banner"), BotCommand("cancel", "Stop current action")]
+    commands = [BotCommand("start", "Welcome"), BotCommand("admin", "Manage memories"), BotCommand("banner", "Update banner"), BotCommand("song", "Update music"), BotCommand("cancel", "Stop action")]
     await application.bot.set_my_commands(commands)
 
 if __name__ == '__main__':
     app = ApplicationBuilder().token(TELEGRAM_TOKEN).post_init(post_init).build()
     conv_handler = ConversationHandler(
-        entry_points=[MessageHandler(filters.PHOTO, handle_photos_start), CommandHandler('admin', admin_menu), CommandHandler('banner', banner_cmd)],
+        entry_points=[MessageHandler(filters.PHOTO, handle_photos_start), CommandHandler('admin', admin_menu), CommandHandler('banner', banner_cmd), CommandHandler('song', song_cmd)],
         states={
-            MAIN_MENU: [CallbackQueryHandler(menu_callback), CommandHandler('admin', admin_menu), CommandHandler('banner', banner_cmd)],
+            MAIN_MENU: [CallbackQueryHandler(menu_callback), CommandHandler('admin', admin_menu), CommandHandler('banner', banner_cmd), CommandHandler('song', song_cmd)],
             GET_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_input_text), CommandHandler('admin', admin_menu)],
             BANNER_UPLOAD: [MessageHandler(filters.PHOTO, handle_banner_upload), CommandHandler('admin', admin_menu)],
+            SONG_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_song_input), CommandHandler('admin', admin_menu)],
         },
         fallbacks=[CommandHandler('cancel', cancel)]
     )
