@@ -133,19 +133,19 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if action == "change_banner": await query.edit_message_text("Send the new banner photo:"); return BANNER_UPLOAD
     if action == "change_song": await query.edit_message_text("Send the YouTube link for the song:"); return SONG_INPUT
     
-    if action == "manage_photos":
+    if action == "manage_photos" or action.startswith("del_photo_"):
         draft = context.user_data.get('draft')
+        if action.startswith("del_photo_"):
+            idx = int(action.split("_")[2])
+            if 0 <= idx < len(draft['photos']):
+                draft['photos'].pop(idx)
+        
         keyboard = []
         for i, p in enumerate(draft.get('photos', [])):
             keyboard.append([InlineKeyboardButton(f"🗑️ Delete Photo {i+1}", callback_data=f"del_photo_{i}")])
-        keyboard.append([InlineKeyboardButton("🔙 Back", callback_data="back_to_menu")])
-        await query.edit_message_text("Manage Photos:\nSend more photos to add them, or tap below to delete.", reply_markup=InlineKeyboardMarkup(keyboard))
+        keyboard.append([InlineKeyboardButton("🔙 Back to Menu", callback_data="back_to_menu")])
+        await query.edit_message_text(f"Manage Photos ({len(draft['photos'])}):\nSend more photos to add them, or tap below to delete.", reply_markup=InlineKeyboardMarkup(keyboard))
         return MAIN_MENU
-
-    if action.startswith("del_photo_"):
-        idx = int(action.split("_")[2])
-        context.user_data['draft']['photos'].pop(idx)
-        return await menu_callback(update, context) # Refresh photo list
 
     if action.startswith("manage_"):
         mem_id = action.split("_")[1]
