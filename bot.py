@@ -14,11 +14,15 @@ from telegram.ext import (
     CallbackQueryHandler
 )
 from supabase import create_client, Client
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Supabase Credentials
-SUPABASE_URL = "https://byqfgirtizfvbmvrkuts.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5cWZnaXJ0aXpmdmJtdnJrdXRzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMjE0MjksImV4cCI6MjA5Mjg5NzQyOX0.KIh1RSlwO0ps4vT4tFBvB4qiamCxLyLhCtUvaVnYUvY"
-TELEGRAM_TOKEN = "8556636256:AAH5uQ29DrY9zrEzrrKnj5fU_El-uQ5Ea7U"
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 # Initialize Supabase
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -111,6 +115,7 @@ async def song_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # CALLBACKS & INPUTS
 # =============================================
 async def handle_photos_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Only start a new draft if not already in one
     context.user_data['draft'] = {'photos': [], 'title': 'New Memory', 'location': 'Cairo, Egypt', 'note': 'A beautiful moment captured.', 'flower_type': 'rose', 'date': datetime.now().strftime("%Y-%m-%d")}
     photo_file = await update.message.photo[-1].get_file()
     context.user_data['draft']['photos'].append(photo_file)
@@ -187,11 +192,14 @@ async def handle_song_name_input(update: Update, context: ContextTypes.DEFAULT_T
 async def handle_input_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     field = context.user_data.get('current_field'); text = update.message.text
     field_map = {"set_title": "title", "set_loc": "location", "set_note": "note"}
+    if 'draft' not in context.user_data: context.user_data['draft'] = {}
     context.user_data['draft'][field_map[field]] = text
     await update.message.reply_text("Updated! 📝", reply_markup=get_draft_keyboard(context.user_data['draft'])); return MAIN_MENU
 
 async def plant_memory_final(query, context):
-    draft = context.user_data['draft']; edit_id = context.user_data.get('is_editing_id')
+    draft = context.user_data.get('draft'); edit_id = context.user_data.get('is_editing_id')
+    if not draft: await query.edit_message_text("Error: No draft found. Please send a photo again."); return ConversationHandler.END
+    
     await query.edit_message_text("Saving... ⏳")
     try:
         if not edit_id:
@@ -201,11 +209,15 @@ async def plant_memory_final(query, context):
                 supabase.storage.from_("memories").upload(path=fn, file=bytes(fb), file_options={"content-type": f"image/{ext}"})
                 uploaded_urls.append(supabase.storage.from_("memories").get_public_url(fn))
             draft['photos'] = uploaded_urls; draft['photo'] = uploaded_urls[0] if uploaded_urls else ""
+        
         memory_data = {"photos": draft['photos'], "photo": draft['photo'], "title": draft['title'], "location": draft['location'], "note": draft['note'], "flower_type": draft['flower_type'], "date": draft['date']}
         if edit_id: supabase.table("memories").update(memory_data).eq("id", edit_id).execute()
         else: supabase.table("memories").insert(memory_data).execute()
+        
         await query.message.reply_text("Memory successfully saved! 🌹✨"); context.user_data.clear(); return ConversationHandler.END
-    except Exception as e: await query.message.reply_text(f"Error: {e}"); return ConversationHandler.END
+    except Exception as e: 
+        logging.error(f"Error in plant_memory_final: {e}")
+        await query.message.reply_text(f"Error: {e}"); return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear(); await update.message.reply_text("Action cancelled."); return ConversationHandler.END
