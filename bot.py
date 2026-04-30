@@ -133,20 +133,32 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if action == "change_banner": await query.edit_message_text("Send the new banner photo:"); return BANNER_UPLOAD
     if action == "change_song": await query.edit_message_text("Send the YouTube link for the song:"); return SONG_INPUT
     
-    if action == "manage_photos" or action.startswith("del_photo_"):
+    if action == "manage_photos" or action.startswith("del_photo_") or action.startswith("move_photo_"):
         draft = context.user_data.get('draft')
         if action.startswith("del_photo_"):
             idx = int(action.split("_")[2])
             if 0 <= idx < len(draft['photos']):
                 draft['photos'].pop(idx)
-                await query.answer("✅ Photo removed from draft!")
-        
+                await query.answer("✅ Photo removed!")
+        elif action.startswith("move_photo_"):
+            _, _, idx, direction = action.split("_")
+            idx = int(idx)
+            new_idx = idx - 1 if direction == "up" else idx + 1
+            if 0 <= new_idx < len(draft['photos']):
+                draft['photos'][idx], draft['photos'][new_idx] = draft['photos'][new_idx], draft['photos'][idx]
+                await query.answer("🔄 Reordered!")
+
         keyboard = []
         for i, p in enumerate(draft.get('photos', [])):
-            keyboard.append([InlineKeyboardButton(f"🗑️ Delete Photo {i+1}", callback_data=f"del_photo_{i}")])
+            row = [InlineKeyboardButton(f"🖼️ Photo {i+1}", callback_data="ignore")]
+            if i > 0: row.append(InlineKeyboardButton("⬆️", callback_data=f"move_photo_{i}_up"))
+            if i < len(draft['photos']) - 1: row.append(InlineKeyboardButton("⬇️", callback_data=f"move_photo_{i}_down"))
+            row.append(InlineKeyboardButton("🗑️", callback_data=f"del_photo_{i}"))
+            keyboard.append(row)
+            
         keyboard.append([InlineKeyboardButton("🔙 Back to Menu", callback_data="back_to_menu")])
         await query.edit_message_text(
-            f"🖼️ **Manage Photos ({len(draft['photos'])} total)**\n\nTap a button to remove a photo.\n\n⚠️ **Note:** You must click **'Save Memory'** on the main menu to apply these changes to the website!", 
+            f"🖼️ **Curate Album ({len(draft['photos'])} photos)**\n\nOrganize your memory sequence using the arrows, or remove photos with the trash icon.\n\n⚠️ **Note:** Click **'Save Memory'** afterwards to update the site!", 
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode='Markdown'
         )
