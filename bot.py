@@ -115,11 +115,25 @@ async def song_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # CALLBACKS & INPUTS
 # =============================================
 async def handle_photos_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Only start a new draft if not already in one
-    context.user_data['draft'] = {'photos': [], 'title': 'New Memory', 'location': 'Cairo, Egypt', 'note': 'A beautiful moment captured.', 'flower_type': 'rose', 'date': datetime.now().strftime("%Y-%m-%d")}
+    # Only start a new draft if one doesn't exist
+    if 'draft' not in context.user_data or not context.user_data['draft']:
+        context.user_data['draft'] = {
+            'photos': [], 
+            'title': 'New Memory', 
+            'location': 'Cairo, Egypt', 
+            'note': 'A beautiful moment captured.', 
+            'flower_type': 'rose', 
+            'date': datetime.now().strftime("%Y-%m-%d")
+        }
+    
     photo_file = await update.message.photo[-1].get_file()
     context.user_data['draft']['photos'].append(photo_file)
-    await update.message.reply_text(f"📸 Photo received!", reply_markup=get_draft_keyboard(context.user_data['draft']))
+    
+    count = len(context.user_data['draft']['photos'])
+    await update.message.reply_text(
+        f"📸 Photo {count} added to draft! Send more or use the menu to finish.", 
+        reply_markup=get_draft_keyboard(context.user_data['draft'])
+    )
     return MAIN_MENU
 
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
