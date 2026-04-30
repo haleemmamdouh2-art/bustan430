@@ -245,7 +245,13 @@ if __name__ == '__main__':
     conv_handler = ConversationHandler(
         entry_points=[MessageHandler(filters.PHOTO, handle_photos_start), CommandHandler('admin', admin_menu), CommandHandler('banner', banner_cmd), CommandHandler('song', song_cmd)],
         states={
-            MAIN_MENU: [CallbackQueryHandler(menu_callback), CommandHandler('admin', admin_menu), CommandHandler('banner', banner_cmd), CommandHandler('song', song_cmd)],
+            MAIN_MENU: [
+                CallbackQueryHandler(menu_callback), 
+                CommandHandler('admin', admin_menu), 
+                CommandHandler('banner', banner_cmd), 
+                CommandHandler('song', song_cmd),
+                MessageHandler(filters.PHOTO, handle_photos_start)
+            ],
             GET_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_input_text), CommandHandler('admin', admin_menu)],
             BANNER_UPLOAD: [MessageHandler(filters.PHOTO, handle_banner_upload), CommandHandler('admin', admin_menu)],
             SONG_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_song_input), CommandHandler('admin', admin_menu)],
