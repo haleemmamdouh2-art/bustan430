@@ -67,13 +67,15 @@ def get_draft_keyboard(data):
     title = data.get('title', 'Not set'); loc = data.get('location', 'Not set'); note = data.get('note', 'Not set')
     date = data.get('date', datetime.now().strftime("%Y-%m-%d"))
     flower = FLOWER_MAP.get(data.get('flower_type', 'rose'), '🌹 Rose')
+    photo_count = len(data.get('photos', []))
     keyboard = [
         [InlineKeyboardButton(f"📅 Date: {date}", callback_data="set_date")],
+        [InlineKeyboardButton(f"🖼️ Manage Photos ({photo_count})", callback_data="manage_photos")],
         [InlineKeyboardButton(f"📝 Title: {title[:20]}...", callback_data="set_title")],
         [InlineKeyboardButton(f"📍 Location: {loc[:20]}...", callback_data="set_loc")],
         [InlineKeyboardButton(f"📖 Story: {note[:20]}...", callback_data="set_note")],
         [InlineKeyboardButton(f"🌸 Flower: {flower}", callback_data="set_flower")],
-        [InlineKeyboardButton("✅ Plant Memory in Garden", callback_data="plant_now")]
+        [InlineKeyboardButton("✅ Save Memory", callback_data="plant_now")]
     ]
     return InlineKeyboardMarkup(keyboard)
 
@@ -115,25 +117,14 @@ async def song_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # CALLBACKS & INPUTS
 # =============================================
 async def handle_photos_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Only start a new draft if one doesn't exist
     if 'draft' not in context.user_data or not context.user_data['draft']:
-        context.user_data['draft'] = {
-            'photos': [], 
-            'title': 'New Memory', 
-            'location': 'Cairo, Egypt', 
-            'note': 'A beautiful moment captured.', 
-            'flower_type': 'rose', 
-            'date': datetime.now().strftime("%Y-%m-%d")
-        }
+        context.user_data['draft'] = {'photos': [], 'title': 'New Memory', 'location': 'Cairo, Egypt', 'note': 'A beautiful moment captured.', 'flower_type': 'rose', 'date': datetime.now().strftime("%Y-%m-%d")}
     
     photo_file = await update.message.photo[-1].get_file()
     context.user_data['draft']['photos'].append(photo_file)
     
     count = len(context.user_data['draft']['photos'])
-    await update.message.reply_text(
-        f"📸 Photo {count} added to draft! Send more or use the menu to finish.", 
-        reply_markup=get_draft_keyboard(context.user_data['draft'])
-    )
+    await update.message.reply_text(f"📸 Photo {count} added! Send more or finish below.", reply_markup=get_draft_keyboard(context.user_data['draft']))
     return MAIN_MENU
 
 async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -141,11 +132,27 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if action == "ignore": return MAIN_MENU
     if action == "change_banner": await query.edit_message_text("Send the new banner photo:"); return BANNER_UPLOAD
     if action == "change_song": await query.edit_message_text("Send the YouTube link for the song:"); return SONG_INPUT
+    
+    if action == "manage_photos":
+        draft = context.user_data.get('draft')
+        keyboard = []
+        for i, p in enumerate(draft.get('photos', [])):
+            keyboard.append([InlineKeyboardButton(f"🗑️ Delete Photo {i+1}", callback_data=f"del_photo_{i}")])
+        keyboard.append([InlineKeyboardButton("🔙 Back", callback_data="back_to_menu")])
+        await query.edit_message_text("Manage Photos:\nSend more photos to add them, or tap below to delete.", reply_markup=InlineKeyboardMarkup(keyboard))
+        return MAIN_MENU
+
+    if action.startswith("del_photo_"):
+        idx = int(action.split("_")[2])
+        context.user_data['draft']['photos'].pop(idx)
+        return await menu_callback(update, context) # Refresh photo list
+
     if action.startswith("manage_"):
         mem_id = action.split("_")[1]
         keyboard = [[InlineKeyboardButton("✏️ Edit Details", callback_data=f"edit_existing_{mem_id}")], [InlineKeyboardButton("🗑️ Delete Memory", callback_data=f"confirm_del_{mem_id}")], [InlineKeyboardButton("🔙 Back to List", callback_data="back_to_admin")]]
         await query.edit_message_text(f"Manage memory {mem_id}:", reply_markup=InlineKeyboardMarkup(keyboard))
         return MAIN_MENU
+    
     if action == "back_to_admin": return await admin_menu(update, context)
     if action.startswith("confirm_del_"):
         mem_id = action.split("_")[2]
@@ -195,12 +202,8 @@ async def handle_song_name_input(update: Update, context: ContextTypes.DEFAULT_T
     name = update.message.text; link = context.user_data.get('new_song_link')
     await update.message.reply_text("Updating site music... ⏳")
     try:
-        supabase.table("site_settings").upsert([
-            {"key": "youtube_link", "value": link},
-            {"key": "music_label", "value": name}
-        ]).execute()
-        await update.message.reply_text("✅ Background music and name updated! Refresh the site to see and hear it.")
-        return ConversationHandler.END
+        supabase.table("site_settings").upsert([{"key": "youtube_link", "value": link}, {"key": "music_label", "value": name}]).execute()
+        await update.message.reply_text("✅ Background music and name updated!"); return ConversationHandler.END
     except Exception as e: await update.message.reply_text(f"Error: {e}"); return ConversationHandler.END
 
 async def handle_input_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -212,26 +215,23 @@ async def handle_input_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def plant_memory_final(query, context):
     draft = context.user_data.get('draft'); edit_id = context.user_data.get('is_editing_id')
-    if not draft: await query.edit_message_text("Error: No draft found. Please send a photo again."); return ConversationHandler.END
-    
+    if not draft: await query.edit_message_text("Error: No draft found."); return ConversationHandler.END
     await query.edit_message_text("Saving... ⏳")
     try:
-        if not edit_id:
-            uploaded_urls = []
-            for i, pf in enumerate(draft['photos']):
-                fb = await pf.download_as_bytearray(); ext = pf.file_path.split('.')[-1]; fn = f"tg_{int(datetime.now().timestamp())}_{i}.{ext}"
+        final_urls = []
+        for i, p in enumerate(draft['photos']):
+            if isinstance(p, str): # Existing URL
+                final_urls.append(p)
+            else: # New File object
+                fb = await p.download_as_bytearray(); ext = p.file_path.split('.')[-1]; fn = f"tg_{int(datetime.now().timestamp())}_{i}.{ext}"
                 supabase.storage.from_("memories").upload(path=fn, file=bytes(fb), file_options={"content-type": f"image/{ext}"})
-                uploaded_urls.append(supabase.storage.from_("memories").get_public_url(fn))
-            draft['photos'] = uploaded_urls; draft['photo'] = uploaded_urls[0] if uploaded_urls else ""
+                final_urls.append(supabase.storage.from_("memories").get_public_url(fn))
         
-        memory_data = {"photos": draft['photos'], "photo": draft['photo'], "title": draft['title'], "location": draft['location'], "note": draft['note'], "flower_type": draft['flower_type'], "date": draft['date']}
+        memory_data = {"photos": final_urls, "photo": final_urls[0] if final_urls else "", "title": draft['title'], "location": draft['location'], "note": draft['note'], "flower_type": draft['flower_type'], "date": draft['date']}
         if edit_id: supabase.table("memories").update(memory_data).eq("id", edit_id).execute()
         else: supabase.table("memories").insert(memory_data).execute()
-        
         await query.message.reply_text("Memory successfully saved! 🌹✨"); context.user_data.clear(); return ConversationHandler.END
-    except Exception as e: 
-        logging.error(f"Error in plant_memory_final: {e}")
-        await query.message.reply_text(f"Error: {e}"); return ConversationHandler.END
+    except Exception as e: await query.message.reply_text(f"Error: {e}"); return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear(); await update.message.reply_text("Action cancelled."); return ConversationHandler.END
@@ -245,13 +245,7 @@ if __name__ == '__main__':
     conv_handler = ConversationHandler(
         entry_points=[MessageHandler(filters.PHOTO, handle_photos_start), CommandHandler('admin', admin_menu), CommandHandler('banner', banner_cmd), CommandHandler('song', song_cmd)],
         states={
-            MAIN_MENU: [
-                CallbackQueryHandler(menu_callback), 
-                CommandHandler('admin', admin_menu), 
-                CommandHandler('banner', banner_cmd), 
-                CommandHandler('song', song_cmd),
-                MessageHandler(filters.PHOTO, handle_photos_start)
-            ],
+            MAIN_MENU: [CallbackQueryHandler(menu_callback), CommandHandler('admin', admin_menu), CommandHandler('banner', banner_cmd), CommandHandler('song', song_cmd), MessageHandler(filters.PHOTO, handle_photos_start)],
             GET_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_input_text), CommandHandler('admin', admin_menu)],
             BANNER_UPLOAD: [MessageHandler(filters.PHOTO, handle_banner_upload), CommandHandler('admin', admin_menu)],
             SONG_INPUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_song_input), CommandHandler('admin', admin_menu)],
